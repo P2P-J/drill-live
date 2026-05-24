@@ -12,13 +12,14 @@ export class Driller {
     this.scene = scene;
     this.tileMap = tileMap;
     this.upgradeSystem = upgradeSystem;
-    this.tileX = tileX;
     this.tileSize = GAME.tileSize;
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * this.tileSize) / 2);
 
+    // 시작 위치 — 채굴 채널의 가운데 타일
     this.worldX = this.xOffset + tileX * this.tileSize + this.tileSize / 2;
     this.y = worldY;
 
+    // 컨테이너 (회전 + 위치 한방에 처리)
     this.container = scene.add.container(this.worldX, this.y);
     this.container.setDepth(50);
 
@@ -34,11 +35,18 @@ export class Driller {
 
     this.container.add([this.body, this.helmet, this.drillBit]);
 
-    // 속도 / 채굴력 / 범위 — Task 8 UpgradeSystem이 동적으로 갱신
+    // 업그레이드 효과치 (UpgradeSystem이 갱신)
     this.speed = GAME.baseDrillSpeed;
-    this.drillSpeedMult = 1.0;     // Drill Power 단계 효과 (1.0 ~ 3.0)
-    this.engineMult = 1.0;          // Engine 단계 효과 (1.0 ~ 1.5)
-    this.drillRange = 1;            // Drill Range 단계 효과 (1, 3, 5)
+    this.drillSpeedMult = 1.0;
+    this.engineMult = 1.0;
+    this.drillRange = 1;
+
+    // ── 통통 튀는 좌우 이동 ──
+    // 좌측 채굴 영역의 픽셀 경계 (벽 타일 안쪽 가장자리)
+    this.leftBound = this.xOffset + (GAME.wallLeftX + 1) * this.tileSize + this.tileSize * 0.46;
+    this.rightBound = this.xOffset + GAME.wallRightX * this.tileSize - this.tileSize * 0.46;
+    // 초기 방향: 무작위
+    this.vx = GAME.bounceSpeed * (Math.random() < 0.5 ? -1 : 1);
 
     this.mineProgress = 0;
     this.isMining = false;
@@ -46,7 +54,6 @@ export class Driller {
 
   _syncUpgrades() {
     if (!this.upgradeSystem) return;
-    // speed는 base 상수 유지. drillSpeedMult, engineMult, drillRange만 업데이트.
     this.drillSpeedMult = this.upgradeSystem.getDrillSpeedMult();
     this.engineMult = this.upgradeSystem.getEngineMult();
     this.drillRange = this.upgradeSystem.getDrillRange();
@@ -55,66 +62,75 @@ export class Driller {
   update(delta) {
     this._syncUpgrades();
     const dt = delta / 1000;
+
+    // ── 1) 좌우 이동 + 벽 반사 ──
+    let newX = this.worldX + this.vx * dt * this.engineMult;
+    if (newX <= this.leftBound) {
+      newX = this.leftBound;
+      this.vx = Math.abs(this.vx);
+      this._spawnBounceParticles(newX, this.y, -1);
+      this._squashBounce();
+    } else if (newX >= this.rightBound) {
+      newX = this.rightBound;
+      this.vx = -Math.abs(this.vx);
+      this._spawnBounceParticles(newX, this.y, +1);
+      this._squashBounce();
+    }
+    this.worldX = newX;
+
+    // ── 2) 현재 X에 해당하는 타일 컬럼 ──
+    const currentTileX = Math.floor((this.worldX - this.xOffset) / this.tileSize);
     const halfH = this.tileSize / 2;
     const drillerBottom = this.y + halfH;
     const epsilon = 1;
     const nextTileY = Math.floor((drillerBottom + epsilon) / this.tileSize);
 
-    const blockingTile = this.tileMap.getTileAt(this.tileX, nextTileY);
+    // ── 3) 아래쪽 타일 검사 ──
+    const blocker = this.tileMap.getTileAt(currentTileX, nextTileY);
 
-    if (blockingTile && !blockingTile.destroyed && !blockingTile.isWall && nextTileY >= 0) {
-      // 채굴 중
+    if (blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
+      // 채굴 중 — Y 정지, 드릴 비트 회전 가속
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;
-
-      // 드릴 비트 회전 애니메이션
       this.drillBit.rotation += dt * 12;
 
       if (this.mineProgress >= GAME.minePerTileSeconds) {
-        this._mineRow(nextTileY);
+        this._mineRow(nextTileY, currentTileX);
         this.mineProgress = 0;
       } else {
-        // 차단 타일 윗변에 driller 바닥 스냅
         const snapY = nextTileY * this.tileSize - halfH;
         this.y = Math.min(this.y, snapY);
       }
     } else {
-      // 차단 없음 → 자유 낙하
+      // 자유 낙하
       this.isMining = false;
       this.drillBit.rotation += dt * 4;
       this.y += this.speed * this.engineMult * dt;
     }
 
+    // 컨테이너 위치 갱신
+    this.container.x = this.worldX;
     this.container.y = this.y;
   }
 
-  _mineRow(tileY) {
+  _mineRow(tileY, centerTileX) {
     const halfRange = Math.floor(this.drillRange / 2);
     let totalGold = 0;
-    let oresCount = 0;
 
     for (let dx = -halfRange; dx <= halfRange; dx++) {
-      const tx = this.tileX + dx;
+      const tx = centerTileX + dx;
       const tile = this.tileMap.getTileAt(tx, tileY);
       if (!tile || tile.destroyed || tile.isWall) continue;
 
-      // 파티클은 destroy 직전에 원본 위치를 사용
       const px = tile.worldX + this.tileSize / 2;
       const py = tile.worldY + this.tileSize / 2;
-
       const ore = this.tileMap.destroyTile(tx, tileY);
       this._spawnParticles(px, py, ore ? ore.color : 0xffffff);
 
-      if (ore) {
-        totalGold += ore.value;
-        oresCount += 1;
-      }
+      if (ore) totalGold += ore.value;
     }
 
-    if (totalGold > 0) {
-      gameState.addGold(totalGold);
-    }
-    return { totalGold, oresCount };
+    if (totalGold > 0) gameState.addGold(totalGold);
   }
 
   _spawnParticles(x, y, color = 0xffffff) {
@@ -136,6 +152,41 @@ export class Driller {
         onComplete: () => p.destroy(),
       });
     }
+  }
+
+  // 벽 반사 시 작은 노란 스파크 4개
+  _spawnBounceParticles(x, y, dirX) {
+    for (let i = 0; i < 4; i++) {
+      const p = this.scene.add.rectangle(x, y, 5, 5, 0xFFEB3B);
+      p.setDepth(60);
+      const angle = (-Math.PI / 4) + (i / 3) * (Math.PI / 2);
+      const dist = 20 + Math.random() * 15;
+      this.scene.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * dist * dirX,
+        y: y + Math.sin(angle) * dist,
+        alpha: 0,
+        scaleX: 0.1,
+        scaleY: 0.1,
+        duration: 220,
+        ease: 'Quad.easeOut',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  // 벽에 부딫혔을 때 컨테이너를 살짝 가로 압축 → 통통 느낌
+  _squashBounce() {
+    this.scene.tweens.killTweensOf(this.container);
+    this.container.scaleX = 0.78;
+    this.container.scaleY = 1.15;
+    this.scene.tweens.add({
+      targets: this.container,
+      scaleX: 1.0,
+      scaleY: 1.0,
+      duration: 180,
+      ease: 'Back.easeOut',
+    });
   }
 
   getTileY() {

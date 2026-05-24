@@ -7,7 +7,7 @@ import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
 import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 
-const DRILLER_TILE_X = 8;
+const DRILLER_TILE_X = 6;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
