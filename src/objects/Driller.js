@@ -8,9 +8,10 @@ const DRILL_COLOR = 0xCFD8DC;
 const SHADOW_COLOR = 0x000000;
 
 export class Driller {
-  constructor(scene, tileX, worldY, tileMap) {
+  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null) {
     this.scene = scene;
     this.tileMap = tileMap;
+    this.upgradeSystem = upgradeSystem;
     this.tileX = tileX;
     this.tileSize = GAME.tileSize;
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * this.tileSize) / 2);
@@ -43,7 +44,16 @@ export class Driller {
     this.isMining = false;
   }
 
+  _syncUpgrades() {
+    if (!this.upgradeSystem) return;
+    // speed는 base 상수 유지. drillSpeedMult, engineMult, drillRange만 업데이트.
+    this.drillSpeedMult = this.upgradeSystem.getDrillSpeedMult();
+    this.engineMult = this.upgradeSystem.getEngineMult();
+    this.drillRange = this.upgradeSystem.getDrillRange();
+  }
+
   update(delta) {
+    this._syncUpgrades();
     const dt = delta / 1000;
     const halfH = this.tileSize / 2;
     const drillerBottom = this.y + halfH;

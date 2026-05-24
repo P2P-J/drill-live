@@ -5,6 +5,7 @@ import { OreLayer } from '../objects/OreLayer.js';
 import { TileMap } from '../objects/TileMap.js';
 import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
+import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 
 const DRILLER_TILE_X = 8;
 
@@ -17,6 +18,7 @@ export class GameScene extends Phaser.Scene {
     this.biomeManager = new BiomeManager();
     this.oreLayer = new OreLayer(this.biomeManager);
     this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
+    this.upgradeSystem = new UpgradeSystem(gameState);
 
     // 배경 (타일 너머)
     this.bg = this.add.rectangle(0, 0, GAME.width, GAME.height * 100, 0x111111)
@@ -28,7 +30,7 @@ export class GameScene extends Phaser.Scene {
     this.tileMap.update(0);
 
     // 드릴러 생성 (지면 약간 위에서 시작)
-    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap);
+    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem);
 
     // 카메라가 드릴러를 따라가게 (y만)
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
