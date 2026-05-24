@@ -1,7 +1,37 @@
+# 의존성
 node_modules
+package-lock.json.bak
+
+# 빌드 산출물
 dist
+.vite
+.cache
+
+# 에디터/OS
 .DS_Store
 *.log
-.vite
+.idea
+.vscode/*.log
+
+# Playwright 테스트 캐시
 .playwright-mcp/
-task*.png
+test-results/
+
+# === 스크린샷·임시 테스트 파일 (소스 추적 X) ===
+# 루트의 모든 PNG/JPG (디버그 캡처)
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+# 임시 비디오
+/*.mp4
+/*.mov
+/*.mkv
+# 디버그 / 로그
+*.tmp
+*.bak
+
+# 환경 변수 (서버용)
+.env
+.env.local
+.env.*.local

@@ -50,7 +50,8 @@ export class GameScene extends Phaser.Scene {
 
     // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
-    this.cameras.main.startFollow(this.driller.container, true, 0, 0.1);
+    // lerpY 0.1 → 0.35: 카메라가 드릴 낙하를 더 빠르게 따라가서 잔상/스터터 감소.
+    this.cameras.main.startFollow(this.driller.container, true, 0, 0.35);
     this.cameras.main.setFollowOffset(0, 250);  // driller가 화면 상단 1/3에 머물게
 
     // UIScene 런치 (병행 실행)

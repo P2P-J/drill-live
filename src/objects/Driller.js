@@ -21,10 +21,11 @@ export class Driller {
     this.container = scene.add.container(this.worldX, this.y);
     this.container.setDepth(50);
 
-    // 텍스처는 64x96. 본체 중심이 텍스처 y=32, 비트 끝이 텍스처 y=94.
-    // 컨테이너 회전 기준점이 텍스처 중심이 되도록 이미지 origin을 본체 중심으로 이동.
-    this.sprite = scene.add.image(0, this.tileSize * 0.25, drillerKey);
-    this.sprite.setOrigin(0.5, 0.333);  // 텍스처의 y=32 지점 (96 * 0.333) = body 중심
+    // 텍스처 64x96. 본체 중심이 텍스처 y=32 (96 * 0.333).
+    // sprite 위치 (0, 0) + origin (0.5, 0.333) = 본체 중심이 컨테이너 원점에 정확히 일치.
+    // (이전 코드는 추가 16px 오프셋이 있어서 collision 위치와 비주얼 어긋났음 → 깜빡임 원인)
+    this.sprite = scene.add.image(0, 0, drillerKey);
+    this.sprite.setOrigin(0.5, 0.333);
 
     this.container.add(this.sprite);
 
@@ -122,16 +123,15 @@ export class Driller {
     this.worldX = newX;
 
     // ── 회전: 본체+비트 한 덩어리 ──
-    // 1) 이동 방향 따른 미세 기울기 (-0.15 ~ +0.15 rad)
-    const tiltTarget = (this.vx / GAME.bounceSpeed) * 0.18;
-    let rotation = tiltTarget;
-
-    // 2) 채굴 중 흔들림 (드릴이 박는 진동감)
+    // 낙하 중에는 회전 없음 (이전 ±0.18 rad 상시 기울기는 깜빡임으로 보였음).
+    // 채굴 중에만 작은 진동 (드릴이 박는 느낌).
+    let rotation = 0;
     if (this.isMining) {
-      this._wobble += dt * 18;
-      rotation += Math.sin(this._wobble) * 0.05;
+      this._wobble += dt * 22;
+      rotation = Math.sin(this._wobble) * 0.04;
+    } else {
+      this._wobble = 0;
     }
-
     this.container.rotation = rotation;
 
     // 아래쪽 타일 검사
@@ -239,15 +239,16 @@ export class Driller {
   }
 
   _squashBounce() {
+    // 너무 강한 squash는 큰 드릴이 출렁임 → 부드럽게.
     this.scene.tweens.killTweensOf(this.container);
-    this.container.scaleX = 0.82;
-    this.container.scaleY = 1.12;
+    this.container.scaleX = 0.92;
+    this.container.scaleY = 1.06;
     this.scene.tweens.add({
       targets: this.container,
       scaleX: 1.0,
       scaleY: 1.0,
-      duration: 180,
-      ease: 'Back.easeOut',
+      duration: 150,
+      ease: 'Quad.easeOut',
     });
   }
 
