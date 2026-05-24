@@ -7,6 +7,7 @@ import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
 import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 import { UPGRADE_ORDER } from '../config/upgrades.js';
+import { BuffSystem } from '../systems/BuffSystem.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -20,6 +21,7 @@ export class GameScene extends Phaser.Scene {
     this.oreLayer = new OreLayer(this.biomeManager);
     this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
     this.upgradeSystem = new UpgradeSystem(gameState);
+    this.buffSystem = new BuffSystem(this);
 
     // 게임 카메라는 위쪽 1400px만 사용. 하단은 UIScene이 차지.
     this.cameras.main.setViewport(0, 0, GAME.width, GAME.gameAreaHeight);
@@ -34,7 +36,7 @@ export class GameScene extends Phaser.Scene {
     this.tileMap.update(0);
 
     // 드릴러 생성
-    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem);
+    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem, this.buffSystem);
 
     // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
@@ -45,6 +47,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch('UIScene', {
       upgradeSystem: this.upgradeSystem,
       biomeManager: this.biomeManager,
+      buffSystem: this.buffSystem,
     });
 
     this._setupDebugKeys();
@@ -90,9 +93,15 @@ export class GameScene extends Phaser.Scene {
       const next = curr >= 5 ? 1 : curr + 1;
       gameState.setUpgrade('drillPower', next);
     });
+
+    // SPACE: 후원 시뮬레이션 — DRILL RANGE +2, 10초 (드릴이 커지고 반경 확장)
+    this.input.keyboard.on('keydown-SPACE', () => {
+      this.buffSystem.apply('drillRangeUp', { bonus: 2, label: 'DRILL UP!' }, 10000);
+    });
   }
 
   update(_time, delta) {
+    this.buffSystem.update();
     this.driller.update(delta);
     this.tileMap.update(this.driller.y);
 

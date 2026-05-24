@@ -11,13 +11,13 @@ const INVENTORY_TOP = 110;
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
 
-// Phase 2에서 BossTracker로 대체. 우선 거리 산정용 데이터.
+// Phase 2에서 BossTracker로 대체. 1 tile = 1 m 기준 깊이값.
 const BOSS_DEPTHS = [
-  { id: 'mega_mole',    name: 'Mega Mole',     km: 9000 },
-  { id: 'crystal_golem',name: 'Crystal Golem', km: 45000 },
-  { id: 'abyss_kraken', name: 'Abyss Kraken',  km: 90000 },
-  { id: 'ancient_treant',name:'Ancient Treant',km: 450000 },
-  { id: 'magma_dragon', name: 'Magma Dragon',  km: 950000 },
+  { id: 'mega_mole',    name: 'Mega Mole',     depthM: 9000 },
+  { id: 'crystal_golem',name: 'Crystal Golem', depthM: 45000 },
+  { id: 'abyss_kraken', name: 'Abyss Kraken',  depthM: 90000 },
+  { id: 'ancient_treant',name:'Ancient Treant',depthM: 450000 },
+  { id: 'magma_dragon', name: 'Magma Dragon',  depthM: 950000 },
 ];
 
 export class UIScene extends Phaser.Scene {
@@ -28,14 +28,63 @@ export class UIScene extends Phaser.Scene {
   init(data) {
     this.upgradeSystem = data.upgradeSystem;
     this.biomeManager = data.biomeManager;
+    this.buffSystem = data.buffSystem;
     this.eventLines = [];
+    this.buffIndicators = new Map();
   }
 
   create() {
     this._buildTopHud();
     this._buildInventory();
     this._buildBottomBar();
+    this._buildBuffArea();
     this._wireEvents();
+  }
+
+  update() {
+    // 버프 잔여시간 갱신
+    for (const [id, ind] of this.buffIndicators) {
+      const remainMs = this.buffSystem?.remainingMs(id) ?? 0;
+      if (remainMs <= 0) {
+        ind.container.destroy();
+        this.buffIndicators.delete(id);
+        continue;
+      }
+      const remainS = (remainMs / 1000).toFixed(1);
+      ind.timeText.setText(`${remainS}s`);
+      const frac = this.buffSystem.remainingFrac(id);
+      ind.bar.scaleX = frac;
+    }
+  }
+
+  _buildBuffArea() {
+    // 상단 우측 (Gold 아래) — 활성 버프 칩이 쌓이는 영역
+    this.buffArea = { x: GAME.width - 220, y: 60, items: 0 };
+  }
+
+  _addBuffIndicator(id, label, color) {
+    const slot = this.buffIndicators.size;
+    const x = this.buffArea.x;
+    const y = this.buffArea.y + slot * 56;
+
+    const container = this.add.container(x, y);
+    const bg = this.add.rectangle(0, 0, 200, 48, 0x000000, 0.75).setOrigin(0, 0)
+      .setStrokeStyle(2, color);
+    const labelText = this.add.text(10, 6, label, {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '22px',
+      color: '#ffffff',
+    });
+    const timeText = this.add.text(190, 6, '10.0s', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '20px',
+      color: '#FFD700',
+    }).setOrigin(1, 0);
+    // 잔여 시간 막대
+    const bar = this.add.rectangle(0, 44, 200, 4, color).setOrigin(0, 0);
+
+    container.add([bg, labelText, timeText, bar]);
+    this.buffIndicators.set(id, { container, labelText, timeText, bar });
   }
 
   // ── 상단: Depth + Biome 중앙, Gold 우측 작게 ──
@@ -142,25 +191,25 @@ export class UIScene extends Phaser.Scene {
     this.eventText2.setText(first?.sub ?? second?.title ?? '');
   }
 
-  _updateNextBoss(km) {
-    const next = BOSS_DEPTHS.find(b => b.km > km);
+  _updateNextBoss(m) {
+    const next = BOSS_DEPTHS.find(b => b.depthM > m);
     if (!next) {
       this.nextBossText.setText('All bosses cleared');
       this.bossDistanceText.setText('');
       return;
     }
-    const dist = next.km - km;
+    const dist = next.depthM - m;
     this.nextBossText.setText(`Next: ${next.name}`);
-    this.bossDistanceText.setText(`${dist.toFixed(0)} km away`);
+    this.bossDistanceText.setText(`${dist.toFixed(0)} m away`);
   }
 
   _wireEvents() {
-    gameState.on('depth', (km) => {
-      this.depthText.setText(`Depth: ${km.toFixed(1)} km`);
-      const layer = this.biomeManager.getLayerAt(Math.max(0, km));
+    gameState.on('depth', (m) => {
+      this.depthText.setText(`Depth: ${m.toFixed(0)} m`);
+      const layer = this.biomeManager.getLayerAt(Math.max(0, m));
       const short = layer.name.split(' ')[0];
       this.biomeText.setText(`${layer.biomeName} - Layer ${short}`);
-      this._updateNextBoss(km);
+      this._updateNextBoss(m);
     });
 
     gameState.on('gold', (g) => {
@@ -170,6 +219,20 @@ export class UIScene extends Phaser.Scene {
     gameState.on('upgrade', ({ name, level }) => {
       this._pushEvent(`Upgrade: ${name} Lv ${level}`, '');
     });
+
+    // 버프 적용 시 인디케이터 추가
+    if (this.buffSystem) {
+      this.buffSystem.on('apply', ({ id, params }) => {
+        if (this.buffIndicators.has(id)) return;  // 이미 표시 중이면 새로 안 만듦 (잔여시간만 갱신됨)
+        const label = params.label ?? id;
+        const color = id === 'drillRangeUp' ? 0xFF9800
+                    : id === 'drillSpeedUp' ? 0x4CAF50
+                    : id === 'engineUp'     ? 0x03A9F4
+                    :                          0xFFEB3B;
+        this._addBuffIndicator(id, label, color);
+        this._pushEvent(label, '');
+      });
+    }
 
     gameState.on('ore', ({ oreId, total }) => {
       const item = this.inventoryItems[oreId];

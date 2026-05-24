@@ -4,10 +4,11 @@ import { gameState } from '../systems/GameState.js';
 import { ensureDrillerTexture } from './DrillerArt.js';
 
 export class Driller {
-  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null) {
+  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null, buffSystem = null) {
     this.scene = scene;
     this.tileMap = tileMap;
     this.upgradeSystem = upgradeSystem;
+    this.buffSystem = buffSystem;
     this.tileSize = GAME.tileSize;
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * this.tileSize) / 2);
 
@@ -41,13 +42,41 @@ export class Driller {
     this.mineProgress = 0;
     this.isMining = false;
     this._wobble = 0;
+    this._displayedRange = 1;  // 마지막으로 시각 갱신한 range
   }
 
   _syncUpgrades() {
     if (!this.upgradeSystem) return;
     this.drillSpeedMult = this.upgradeSystem.getDrillSpeedMult();
     this.engineMult = this.upgradeSystem.getEngineMult();
-    this.drillRange = this.upgradeSystem.getDrillRange();
+
+    // 업그레이드 단계 + 버프 보너스 = 효과 range
+    const baseRange = this.upgradeSystem.getDrillRange();
+    let bonus = 0;
+    if (this.buffSystem) {
+      const buff = this.buffSystem.get('drillRangeUp');
+      if (buff) bonus = buff.params.bonus;
+    }
+    const newRange = baseRange + bonus;
+
+    if (newRange !== this._displayedRange) {
+      this._displayedRange = newRange;
+      this._tweenScaleForRange(newRange);
+    }
+    this.drillRange = newRange;
+  }
+
+  // 드릴이 시각적으로 더 커져서 더 넓은 범위를 캐는 듯한 느낌
+  _tweenScaleForRange(range) {
+    const targetScale = 1.0 + (range - 1) * 0.35;
+    this.scene.tweens.killTweensOf(this.sprite);
+    this.scene.tweens.add({
+      targets: this.sprite,
+      scaleX: targetScale,
+      scaleY: targetScale,
+      duration: 350,
+      ease: 'Back.easeOut',
+    });
   }
 
   update(delta) {
@@ -111,10 +140,10 @@ export class Driller {
     this.container.y = this.y;
   }
 
-  // 반원 범위 채굴 (drillRange 1=1.8, 2=3.0, 3=4.5 타일 반경)
+  // 반원 범위 채굴 — drillRange가 커질수록 반지름이 늘어남.
+  // (기본 1=1.8, 2=3.0, 3=4.5, 4=6.0, 5=7.5, 6=9.0 타일 반경)
   _mineSemicircle(tileY, centerTileX) {
-    const radiusMap = [1.8, 3.0, 4.5];
-    const r = radiusMap[Math.min(this.drillRange, radiusMap.length) - 1] ?? 1.8;
+    const r = 1.8 + (Math.max(1, this.drillRange) - 1) * 1.5;
     const r2 = r * r;
     const ir = Math.ceil(r);
     let totalGold = 0;
