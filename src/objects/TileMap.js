@@ -1,18 +1,21 @@
 import { GAME } from '../config/game.js';
-
-const WALL_COLOR = 0x2a2a2a;
+import {
+  ensureDirtTexture,
+  ensureWallTexture,
+  ensureGemTexture,
+  tileHash,
+} from './TileArt.js';
 
 export class TileMap {
   constructor(scene, biomeManager, oreLayer = null) {
     this.scene = scene;
     this.biomeManager = biomeManager;
     this.oreLayer = oreLayer;
-    this.chunks = new Map();      // cy -> { cy, tiles: Map }
-    this.tileGrid = new Map();    // "x,y" -> tile
+    this.chunks = new Map();
+    this.tileGrid = new Map();
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * GAME.tileSize) / 2);
   }
 
-  // Driller의 현재 world y(px) 기준으로 필요한 청크 로드, 너무 멀어진 청크 해제
   update(drillerY) {
     const chunkPx = GAME.chunkTilesY * GAME.tileSize;
     const currentCy = Math.floor(drillerY / chunkPx);
@@ -38,33 +41,42 @@ export class TileMap {
       const km = this.biomeManager.yToKm(worldY);
 
       for (let tileX = 0; tileX < GAME.chunkTilesX; tileX++) {
-        const isWall = tileX === 0 || tileX === GAME.chunkTilesX - 1;
-        const baseColor = this.biomeManager.getColorAt(km);
-        const color = isWall ? WALL_COLOR : baseColor;
-
+        const isWall = tileX === GAME.wallLeftX || tileX === GAME.wallRightX;
         const worldX = this.xOffset + tileX * GAME.tileSize;
         const cx = worldX + GAME.tileSize / 2;
-        const cy_ = worldY + GAME.tileSize / 2;
+        const cyPx = worldY + GAME.tileSize / 2;
 
-        const sprite = this.scene.add.rectangle(
-          cx, cy_,
-          GAME.tileSize - 1,
-          GAME.tileSize - 1,
-          color
-        );
+        const variant = tileHash(tileX, tileY) % 4;
+        let sprite;
+        if (isWall) {
+          const key = ensureWallTexture(this.scene, variant);
+          sprite = this.scene.add.image(cx, cyPx, key);
+        } else {
+          const baseColor = this.biomeManager.getColorAt(km);
+          const key = ensureDirtTexture(this.scene, baseColor, variant);
+          sprite = this.scene.add.image(cx, cyPx, key);
+        }
         sprite.setDepth(0);
 
-        // 광물 굴림 (벽 제외)
+        // 광물
         let ore = null;
         let gemSprite = null;
         if (!isWall && this.oreLayer) {
           ore = this.oreLayer.rollOreAt(km);
           if (ore) {
-            const gemSize = GAME.tileSize * 0.6;
-            gemSprite = this.scene.add.rectangle(cx, cy_, gemSize, gemSize, ore.color);
-            gemSprite.setStrokeStyle(3, 0xffffff, 0.85);
-            gemSprite.setAngle(45);
+            const gemKey = ensureGemTexture(this.scene, ore.id, ore.color);
+            gemSprite = this.scene.add.image(cx, cyPx, gemKey);
             gemSprite.setDepth(5);
+            // 살짝 떠 있는 듯한 반짝임 트윈
+            this.scene.tweens.add({
+              targets: gemSprite,
+              scaleX: 1.05,
+              scaleY: 1.05,
+              duration: 1200 + (variant * 100),
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.easeInOut',
+            });
           }
         }
 
@@ -105,7 +117,6 @@ export class TileMap {
     return this.tileGrid.get(this._key(tileX, tileY));
   }
 
-  // worldX 좌표에 해당하는 tileX 인덱스
   worldXToTileX(worldX) {
     return Math.floor((worldX - this.xOffset) / GAME.tileSize);
   }
@@ -114,7 +125,6 @@ export class TileMap {
     return Math.floor(worldY / GAME.tileSize);
   }
 
-  // 채굴: 타일 시각 제거 + 광물이면 광물 정보 반환 ({ id, name, value, color })
   destroyTile(tileX, tileY) {
     const tile = this.getTileAt(tileX, tileY);
     if (!tile || tile.destroyed || tile.isWall) return null;
@@ -123,7 +133,7 @@ export class TileMap {
     tile.sprite = null;
     tile.gemSprite?.destroy();
     tile.gemSprite = null;
-    return tile.ore;  // null 또는 광물 객체. Task 7에서 광물 분포 적용.
+    return tile.ore;
   }
 
   _key(tileX, tileY) {
