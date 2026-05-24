@@ -95,14 +95,16 @@ export class TileMap {
     return Math.floor(worldY / GAME.tileSize);
   }
 
-  // 채굴: 타일 시각 제거 + 광물이면 광물 정보 반환
+  // 채굴: 타일 시각 제거 + 광물이면 광물 정보 반환 ({ id, name, value, color })
   destroyTile(tileX, tileY) {
     const tile = this.getTileAt(tileX, tileY);
     if (!tile || tile.destroyed || tile.isWall) return null;
     tile.destroyed = true;
     tile.sprite?.destroy();
     tile.sprite = null;
-    return tile.ore;
+    tile.gemSprite?.destroy();
+    tile.gemSprite = null;
+    return tile.ore;  // null 또는 광물 객체. Task 7에서 광물 분포 적용.
   }
 
   _key(tileX, tileY) {

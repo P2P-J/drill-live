@@ -26,7 +26,7 @@ export class GameScene extends Phaser.Scene {
     this.tileMap.update(0);
 
     // 드릴러 생성 (지면 약간 위에서 시작)
-    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2);
+    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap);
 
     // 카메라가 드릴러를 따라가게 (y만)
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
@@ -57,8 +57,9 @@ export class GameScene extends Phaser.Scene {
     this.debugText.setText(
       `Depth: ${km.toFixed(1)} km\n` +
       `Biome: ${layer.biomeEmoji} ${layer.biomeName}\n` +
-      `Layer: ${layer.name}\n` +
-      `Speed: ${this.driller.speed} px/s`
+      `Gold: ${gameState.gold}\n` +
+      `Mining: ${this.driller.isMining ? 'YES' : 'no'}\n` +
+      `Range: ${this.driller.drillRange}`
     );
   }
 }
