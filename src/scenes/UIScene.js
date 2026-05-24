@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 import { GAME } from '../config/game.js';
-import { UPGRADES, UPGRADE_ORDER } from '../config/upgrades.js';
 import { ORES, ORE_IDS } from '../config/ores.js';
+import { TRIGGERS } from '../config/triggers.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
-import { ensureUpgradeIcon } from '../objects/UIArt.js';
 
 const INVENTORY_X = 12;
 const INVENTORY_W = 96;
@@ -23,23 +22,23 @@ export class UIScene extends Phaser.Scene {
   create() {
     this._buildTopHud();
     this._buildInventory();
-    this._buildUpgradePanel();
+    this._buildTriggerPanel();
     this._wireEvents();
   }
 
-  // ── 상단 (Depth + Biome만) ──
+  // ── 상단 HUD (Depth + Biome + 자동 업그레이드 상태) ──
   _buildTopHud() {
     this.add.rectangle(0, 0, GAME.width, 100, 0x000000, 0.6).setOrigin(0, 0);
 
-    this.depthText = this.add.text(GAME.width / 2, 18, 'Depth: 0.0 km', {
+    this.depthText = this.add.text(GAME.width / 2, 14, 'Depth: 0.0 km', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '48px',
+      fontSize: '46px',
       color: '#ffffff',
     }).setOrigin(0.5, 0);
 
-    this.biomeText = this.add.text(GAME.width / 2, 70, 'Earth - Layer 1-1', {
+    this.biomeText = this.add.text(GAME.width / 2, 64, 'Earth - Layer 1-1', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '26px',
+      fontSize: '24px',
       color: '#cccccc',
     }).setOrigin(0.5, 0);
   }
@@ -52,24 +51,19 @@ export class UIScene extends Phaser.Scene {
     const itemH = 102;
     const totalH = ORE_IDS.length * itemH + 20;
 
-    // 패널 배경
     this.add.rectangle(x, y, w, totalH, 0x000000, 0.55).setOrigin(0, 0)
       .setStrokeStyle(2, 0xFFD700, 0.5);
 
     this.inventoryItems = {};
     ORE_IDS.forEach((id, i) => {
-      const ore = ORES[id];
       const cy_ = y + 10 + i * itemH;
-
-      // 다이아 모양 아이콘 배경 (살짝 어두운 사각)
-      const iconBg = this.add.rectangle(x + w / 2, cy_ + 30, 60, 60, 0x1a1a1a, 0.7)
+      this.add.rectangle(x + w / 2, cy_ + 30, 60, 60, 0x1a1a1a, 0.7)
         .setStrokeStyle(1, 0x444444, 0.8);
 
-      // 광물 텍스처
       const gemKey = ensureGemTexture(this, id);
       const icon = this.add.image(x + w / 2, cy_ + 30, gemKey);
-      icon.setScale(56 / GAME.tileSize);  // 64 → 56 정도로 작게
-      icon.setAlpha(0.35);  // 0개일 땐 흐릿
+      icon.setScale(56 / GAME.tileSize);
+      icon.setAlpha(0.35);
 
       const count = this.add.text(x + w / 2, cy_ + 68, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
@@ -77,119 +71,91 @@ export class UIScene extends Phaser.Scene {
         color: '#FFD700',
       }).setOrigin(0.5, 0);
 
-      this.inventoryItems[id] = { icon, count, bg: iconBg };
+      this.inventoryItems[id] = { icon, count };
     });
   }
 
-  // ── 하단 업그레이드 패널 ──
-  _buildUpgradePanel() {
+  // ── 하단: 후원 트리거 안내 패널 (ZRQYT COMANDOS 스타일) ──
+  _buildTriggerPanel() {
     const panelY = GAME.hudY;
     const panelH = GAME.hudHeight;
 
-    this.add.rectangle(0, panelY, GAME.width, panelH, 0x1a1a1a, 0.98).setOrigin(0, 0);
+    this.add.rectangle(0, panelY, GAME.width, panelH, 0x111118, 0.98).setOrigin(0, 0);
     this.add.rectangle(0, panelY, GAME.width, 6, 0xFFD700).setOrigin(0, 0);
 
-    // 제목 + 골드
-    this.add.text(24, panelY + 12, 'UPGRADES', {
+    // 헤더
+    this.add.text(24, panelY + 12, 'TRIGGERS', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '32px',
+      fontSize: '34px',
       color: '#FFD700',
     }).setOrigin(0, 0);
 
-    // 작은 골드 카운터 (참고용, 우측 끝)
-    this.goldText = this.add.text(GAME.width - 24, panelY + 16, '$0', {
+    this.add.text(GAME.width - 24, panelY + 18, '$1 = BOMB 💥', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '28px',
-      color: '#FFD700',
+      fontSize: '24px',
+      color: '#FFEB3B',
     }).setOrigin(1, 0);
 
-    const margin = 16;
-    const gap = 12;
-    const btnW = Math.floor((GAME.width - margin * 2 - gap * 4) / 5);
-    const btnH = panelH - 100;
-    const startY = panelY + 70;
+    // 3열 × 5행 = 15칸 그리드
+    const cols = 3;
+    const rows = 5;
+    const gridTop = panelY + 70;
+    const gridLeft = 16;
+    const gridRight = 16;
+    const gap = 8;
+    const cellW = Math.floor((GAME.width - gridLeft - gridRight - gap * (cols - 1)) / cols);
+    const cellH = Math.floor((panelH - 80 - gap * (rows - 1)) / rows);
 
-    this.upgradeButtons = {};
-    UPGRADE_ORDER.forEach((name, i) => {
-      const x = margin + i * (btnW + gap);
-      this.upgradeButtons[name] = this._createUpgradeButton(name, x, startY, btnW, btnH);
+    TRIGGERS.forEach((trig, i) => {
+      if (i >= cols * rows) return;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = gridLeft + col * (cellW + gap);
+      const y = gridTop + row * (cellH + gap);
+      this._createTriggerCell(trig, x, y, cellW, cellH);
     });
   }
 
-  _createUpgradeButton(name, x, y, w, h) {
-    const def = UPGRADES[name];
-    const container = this.add.container(x, y);
+  _createTriggerCell(trig, x, y, w, h) {
+    // 배경
+    const bg = this.add.rectangle(x, y, w, h, 0x1f1f28, 1).setOrigin(0, 0)
+      .setStrokeStyle(2, 0x333344);
 
-    // 어두운 배경 + 외곽선
-    const bg = this.add.rectangle(0, 0, w, h, 0x2a2a2a).setOrigin(0, 0)
-      .setStrokeStyle(3, 0x555555);
-    bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this._tryBuy(name));
-
-    // 아이콘 영역 (테두리 박스 + 진짜 아이콘 텍스처)
-    const iconBoxBg = this.add.rectangle(w / 2, 56, 80, 80, 0x111111)
-      .setStrokeStyle(2, 0x555555);
-
-    const iconKey = ensureUpgradeIcon(this, name);
-    const icon = this.add.image(w / 2, 56, iconKey);
-    icon.setScale(0.95);
-
-    const nameText = this.add.text(w / 2, 110, def.name, {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '22px',
-      color: '#ffffff',
-    }).setOrigin(0.5, 0);
-
-    const levelText = this.add.text(w / 2, 150, `Lv 1/${def.maxLevel}`, {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '26px',
-      color: '#FFD700',
-    }).setOrigin(0.5, 0);
-
-    const costText = this.add.text(w / 2, h - 50, '', {
+    // 좌측 컬러 박스 (아이콘 자리)
+    const boxSize = Math.min(h - 12, 56);
+    this.add.rectangle(x + 8, y + (h - boxSize) / 2, boxSize, boxSize, trig.color, 1)
+      .setOrigin(0, 0)
+      .setStrokeStyle(2, 0x000000);
+    // 박스 안에 첫 글자
+    this.add.text(x + 8 + boxSize / 2, y + h / 2, trig.label.charAt(0), {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: '28px',
+      color: '#000000',
+    }).setOrigin(0.5, 0.5);
+
+    // 라벨
+    this.add.text(x + boxSize + 16, y + 8, trig.label, {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '20px',
       color: '#ffffff',
-    }).setOrigin(0.5, 0);
+    }).setOrigin(0, 0);
 
-    container.add([bg, iconBoxBg, icon, nameText, levelText, costText]);
-    container.bg = bg;
-    container.levelText = levelText;
-    container.costText = costText;
-    container.name = name;
+    // 가격 (타입에 따라 색상 다름)
+    const priceColor = trig.type === 'donate' ? '#FFD700'
+                     : trig.type === 'chat'   ? '#90CAF9'
+                     :                          '#F8BBD0';
+    this.add.text(x + w - 8, y + 8, trig.price, {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '20px',
+      color: priceColor,
+    }).setOrigin(1, 0);
 
-    this._updateButtonVisual(container);
-    return container;
-  }
-
-  _tryBuy(name) {
-    if (this.upgradeSystem.buy(name)) {
-      const btn = this.upgradeButtons[name];
-      this.tweens.add({
-        targets: btn.bg,
-        scale: { from: 1.05, to: 1.0 },
-        duration: 200,
-      });
-    }
-  }
-
-  _updateButtonVisual(btn) {
-    const def = UPGRADES[btn.name];
-    const level = gameState.upgrades[btn.name];
-    const cost = this.upgradeSystem.nextCost(btn.name);
-    const canBuy = this.upgradeSystem.canBuy(btn.name);
-
-    btn.levelText.setText(`Lv ${level}/${def.maxLevel}`);
-
-    if (cost === null) {
-      btn.costText.setText('MAX');
-      btn.costText.setColor('#FFD700');
-      btn.bg.setStrokeStyle(3, 0xFFD700);
-    } else {
-      btn.costText.setText(`$${cost.toLocaleString()}`);
-      btn.costText.setColor(canBuy ? '#4caf50' : '#777777');
-      btn.bg.setStrokeStyle(3, canBuy ? 0x4caf50 : 0x555555);
-    }
+    // 효과 설명
+    this.add.text(x + boxSize + 16, y + h - 26, trig.effect, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '16px',
+      color: '#bbbbbb',
+    }).setOrigin(0, 0);
   }
 
   _wireEvents() {
@@ -200,25 +166,11 @@ export class UIScene extends Phaser.Scene {
       this.biomeText.setText(`${layer.biomeName} - Layer ${short}`);
     });
 
-    gameState.on('gold', (g) => {
-      this.goldText.setText(`$${g.toLocaleString()}`);
-      for (const btn of Object.values(this.upgradeButtons)) {
-        this._updateButtonVisual(btn);
-      }
-    });
-
-    gameState.on('upgrade', () => {
-      for (const btn of Object.values(this.upgradeButtons)) {
-        this._updateButtonVisual(btn);
-      }
-    });
-
     gameState.on('ore', ({ oreId, total }) => {
       const item = this.inventoryItems[oreId];
       if (!item) return;
       item.count.setText(String(total));
-      item.icon.setAlpha(1.0);  // 한 번이라도 캐면 풀 컬러
-      // 잠깐 확대 애니메이션
+      item.icon.setAlpha(1.0);
       this.tweens.add({
         targets: item.icon,
         scale: { from: (56 / GAME.tileSize) * 1.3, to: (56 / GAME.tileSize) },

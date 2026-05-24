@@ -6,6 +6,7 @@ import { TileMap } from '../objects/TileMap.js';
 import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
 import { UpgradeSystem } from '../systems/UpgradeSystem.js';
+import { UPGRADE_ORDER } from '../config/upgrades.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -101,6 +102,27 @@ export class GameScene extends Phaser.Scene {
     // 배경 색상: 현재 바이옴 색의 25% 밝기로
     const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
     this.bg.setFillStyle(darken(biomeColor, 0.25));
+
+    // 자동 업그레이드 — 가장 저렴한 구매 가능 항목을 매 0.4초마다 1개씩 구매
+    this._autoBuyTimer = (this._autoBuyTimer ?? 0) + delta;
+    if (this._autoBuyTimer >= 400) {
+      this._autoBuyTimer = 0;
+      this._autoBuyCheapest();
+    }
+  }
+
+  _autoBuyCheapest() {
+    let cheapest = null;
+    let cheapestCost = Infinity;
+    for (const name of UPGRADE_ORDER) {
+      const cost = this.upgradeSystem.nextCost(name);
+      if (cost === null) continue;
+      if (this.upgradeSystem.canBuy(name) && cost < cheapestCost) {
+        cheapest = name;
+        cheapestCost = cost;
+      }
+    }
+    if (cheapest) this.upgradeSystem.buy(cheapest);
   }
 }
 
