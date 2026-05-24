@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME } from '../config/game.js';
 import { BiomeManager } from '../objects/BiomeManager.js';
+import { OreLayer } from '../objects/OreLayer.js';
 import { TileMap } from '../objects/TileMap.js';
 import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
@@ -14,7 +15,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     this.biomeManager = new BiomeManager();
-    this.tileMap = new TileMap(this, this.biomeManager);
+    this.oreLayer = new OreLayer(this.biomeManager);
+    this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
 
     // 배경 (타일 너머)
     this.bg = this.add.rectangle(0, 0, GAME.width, GAME.height * 100, 0x111111)

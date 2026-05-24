@@ -3,9 +3,10 @@ import { GAME } from '../config/game.js';
 const WALL_COLOR = 0x2a2a2a;
 
 export class TileMap {
-  constructor(scene, biomeManager) {
+  constructor(scene, biomeManager, oreLayer = null) {
     this.scene = scene;
     this.biomeManager = biomeManager;
+    this.oreLayer = oreLayer;
     this.chunks = new Map();      // cy -> { cy, tiles: Map }
     this.tileGrid = new Map();    // "x,y" -> tile
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * GAME.tileSize) / 2);
@@ -42,14 +43,30 @@ export class TileMap {
         const color = isWall ? WALL_COLOR : baseColor;
 
         const worldX = this.xOffset + tileX * GAME.tileSize;
+        const cx = worldX + GAME.tileSize / 2;
+        const cy_ = worldY + GAME.tileSize / 2;
+
         const sprite = this.scene.add.rectangle(
-          worldX + GAME.tileSize / 2,
-          worldY + GAME.tileSize / 2,
+          cx, cy_,
           GAME.tileSize - 1,
           GAME.tileSize - 1,
           color
         );
         sprite.setDepth(0);
+
+        // 광물 굴림 (벽 제외)
+        let ore = null;
+        let gemSprite = null;
+        if (!isWall && this.oreLayer) {
+          ore = this.oreLayer.rollOreAt(km);
+          if (ore) {
+            const gemSize = GAME.tileSize * 0.6;
+            gemSprite = this.scene.add.rectangle(cx, cy_, gemSize, gemSize, ore.color);
+            gemSprite.setStrokeStyle(3, 0xffffff, 0.85);
+            gemSprite.setAngle(45);
+            gemSprite.setDepth(5);
+          }
+        }
 
         const tile = {
           tileX,
@@ -58,9 +75,10 @@ export class TileMap {
           worldY,
           km,
           isWall,
-          ore: null,            // Task 7에서 설정
+          ore,
           destroyed: false,
           sprite,
+          gemSprite,
         };
 
         const key = this._key(tileX, tileY);
@@ -77,6 +95,7 @@ export class TileMap {
     if (!chunk) return;
     for (const tile of chunk.tiles.values()) {
       tile.sprite?.destroy();
+      tile.gemSprite?.destroy();
       this.tileGrid.delete(this._key(tile.tileX, tile.tileY));
     }
     this.chunks.delete(cy);
