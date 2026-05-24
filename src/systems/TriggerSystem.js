@@ -76,18 +76,30 @@ export class TriggerSystem {
   }
 
   _handleBomb(def) {
-    const targetX = this.driller.worldX;
-    // 드릴 sprite 텍스처는 64x96, origin (0.5, 0.333) — sprite 바닥 = drill.y + 64*scale
-    // 큰 드릴이어도 sprite 바닥 아래에서 땅을 찾도록.
+    // 보스 활성 중이면 보스가 타겟. 아니면 드릴 아래에.
+    const boss = this.bossTracker?.activeBoss;
     const drillScale = this.driller.sprite?.scaleY ?? 1.0;
+    const targetX = boss ? boss.x : this.driller.worldX;
     const drillVisualBottomY = this.driller.y + 64 * drillScale;
-    this.explosionEffect.drop(targetX, drillVisualBottomY, {
+    const targetY = boss ? boss.y : drillVisualBottomY;
+
+    this.explosionEffect.drop(targetX, targetY, {
       radius: def.radius,
       color: def.color,
       label: def.label,
       tntScale: def.tntScale,
       shake: def.shake ?? 0.012,
     });
+
+    // 보스에게 데미지 (PRD 4-3 BOSS BOMB / BOSS NUKE 비례 + 일반 폭탄도 데미지)
+    if (boss) {
+      const damageMap = {
+        BOMB: 100, ULTRA_BOMB: 300, MEGA_BLAST: 600, NUKE: 2500,
+      };
+      const dmg = damageMap[Object.keys(TRIGGER_DEFS).find(k => TRIGGER_DEFS[k] === def)] ?? 100;
+      // 폭발 직후 (낙하 + sizzle = ~1.6초 후) 데미지 적용
+      this.scene.time.delayedCall(1600, () => boss.takeDamage(dmg));
+    }
   }
 
   _handleBuff(def) {

@@ -9,6 +9,7 @@ import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 import { UPGRADE_ORDER } from '../config/upgrades.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
 import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
+import { BossTracker } from '../systems/BossTracker.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -48,6 +49,14 @@ export class GameScene extends Phaser.Scene {
       oreLayer: this.oreLayer,
     });
 
+    // 보스 추적기
+    this.bossTracker = new BossTracker(this, {
+      driller: this.driller,
+      tileMap: this.tileMap,
+      buffSystem: this.buffSystem,
+    });
+    this.triggerSystem.bossTracker = this.bossTracker;
+
     // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
     // lerpY 0.1 → 0.35: 카메라가 드릴 낙하를 더 빠르게 따라가서 잔상/스터터 감소.
@@ -60,6 +69,7 @@ export class GameScene extends Phaser.Scene {
       biomeManager: this.biomeManager,
       buffSystem: this.buffSystem,
       triggerSystem: this.triggerSystem,
+      bossTracker: this.bossTracker,
     });
 
     this._setupDebugKeys();
@@ -133,15 +143,28 @@ export class GameScene extends Phaser.Scene {
         this.triggerSystem.fire(triggerId);
       });
     }
+
+    // B: 다음 보스 즉시 강제 소환 (테스트용)
+    this.input.keyboard.on('keydown-B', () => {
+      this.bossTracker.forceSpawnNext();
+    });
+    // N: 활성 보스 즉시 처치 (테스트용)
+    this.input.keyboard.on('keydown-N', () => {
+      this.bossTracker.activeBoss?.forceDefeat();
+    });
   }
 
   update(_time, delta) {
     this.buffSystem.update();
-    this.driller.update(delta);
+    // 보스 활성 중에는 드릴 정지
+    if (!this.bossTracker.activeBoss) {
+      this.driller.update(delta);
+    }
     this.tileMap.update(this.driller.y);
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
+    this.bossTracker.update(km);
 
     // 배경 색상: 현재 바이옴 색의 25% 밝기로
     const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
