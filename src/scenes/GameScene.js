@@ -8,6 +8,7 @@ import { gameState } from '../systems/GameState.js';
 import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 import { UPGRADE_ORDER } from '../config/upgrades.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
+import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -38,6 +39,15 @@ export class GameScene extends Phaser.Scene {
     // 드릴러 생성
     this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem, this.buffSystem);
 
+    // 트리거 시스템 (후원/채팅/구독 이벤트 핸들러)
+    this.triggerSystem = new TriggerSystem(this, {
+      driller: this.driller,
+      tileMap: this.tileMap,
+      biomeManager: this.biomeManager,
+      buffSystem: this.buffSystem,
+      oreLayer: this.oreLayer,
+    });
+
     // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
     this.cameras.main.startFollow(this.driller.container, true, 0, 0.1);
@@ -48,6 +58,7 @@ export class GameScene extends Phaser.Scene {
       upgradeSystem: this.upgradeSystem,
       biomeManager: this.biomeManager,
       buffSystem: this.buffSystem,
+      triggerSystem: this.triggerSystem,
     });
 
     this._setupDebugKeys();
@@ -96,8 +107,31 @@ export class GameScene extends Phaser.Scene {
 
     // SPACE: 후원 시뮬레이션 — DRILL RANGE +2, 10초 (드릴이 커지고 반경 확장)
     this.input.keyboard.on('keydown-SPACE', () => {
-      this.buffSystem.apply('drillRangeUp', { bonus: 2, label: 'DRILL UP!' }, 10000);
+      this.triggerSystem.fire('RANGE_UP');
     });
+
+    // === 후원 시뮬레이션 키보드 매핑 (Phase 3 테스트용) ===
+    const KEY_TRIGGERS = {
+      'ONE':   'BOMB',         // $1
+      'TWO':   'ULTRA_BOMB',   // $3
+      'THREE': 'MEGA_BLAST',   // $5
+      'FOUR':  'NUKE',         // $20
+      'FIVE':  'DRILL_UP',     // $2
+      'SIX':   'TURBO',        // $5
+      'SEVEN': 'OVERDRIVE',    // $10
+      'EIGHT': 'GOLD_RUSH',    // $3
+      'NINE':  'GEM_DROP',     // $5
+      'ZERO':  'DIAMOND',      // $10
+      'Q':     'SPECIAL',      // $15
+      'W':     'FAST',         // !fast
+      'E':     'SUB',          // 신규 구독
+      'M':     'MEMBER',       // 멤버 가입
+    };
+    for (const [key, triggerId] of Object.entries(KEY_TRIGGERS)) {
+      this.input.keyboard.on(`keydown-${key}`, () => {
+        this.triggerSystem.fire(triggerId);
+      });
+    }
   }
 
   update(_time, delta) {

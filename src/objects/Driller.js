@@ -47,10 +47,22 @@ export class Driller {
 
   _syncUpgrades() {
     if (!this.upgradeSystem) return;
-    this.drillSpeedMult = this.upgradeSystem.getDrillSpeedMult();
-    this.engineMult = this.upgradeSystem.getEngineMult();
+    let drillSpeedMult = this.upgradeSystem.getDrillSpeedMult();
+    let engineMult = this.upgradeSystem.getEngineMult();
 
-    // 업그레이드 단계 + 버프 보너스 = 효과 range
+    // drillPowerUp 버프 (DRILL UP / TURBO / OVERDRIVE / !fast)
+    if (this.buffSystem) {
+      const powerBuff = this.buffSystem.get('drillPowerUp');
+      if (powerBuff) {
+        drillSpeedMult *= powerBuff.params.mult;
+        engineMult *= powerBuff.params.mult;
+      }
+    }
+
+    this.drillSpeedMult = drillSpeedMult;
+    this.engineMult = engineMult;
+
+    // 업그레이드 단계 + drillRangeUp 버프 = 효과 range
     const baseRange = this.upgradeSystem.getDrillRange();
     let bonus = 0;
     if (this.buffSystem) {
@@ -64,6 +76,11 @@ export class Driller {
       this._tweenScaleForRange(newRange);
     }
     this.drillRange = newRange;
+  }
+
+  // 현재 드릴이 위치한 tileX (트리거 시스템에서 사용)
+  getCurrentTileX() {
+    return Math.floor((this.worldX - this.xOffset) / this.tileSize);
   }
 
   // 드릴 크기가 채굴 반경에 맞춰 확연히 커짐 (범위 = 드릴 크기 일치감)

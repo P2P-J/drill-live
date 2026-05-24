@@ -29,6 +29,7 @@ export class UIScene extends Phaser.Scene {
     this.upgradeSystem = data.upgradeSystem;
     this.biomeManager = data.biomeManager;
     this.buffSystem = data.buffSystem;
+    this.triggerSystem = data.triggerSystem;
     this.eventLines = [];
     this.buffIndicators = new Map();
   }
@@ -38,7 +39,61 @@ export class UIScene extends Phaser.Scene {
     this._buildInventory();
     this._buildBottomBar();
     this._buildBuffArea();
+    this._buildAnnouncement();
     this._wireEvents();
+  }
+
+  _buildAnnouncement() {
+    // 가운데 큰 텍스트 (후원/채팅 들어올 때 잠시 표시)
+    this.announceContainer = this.add.container(GAME.width / 2, 280);
+    this.announceContainer.setDepth(100);
+    this.announceContainer.setVisible(false);
+
+    this.announceTrigger = this.add.text(0, 0, '', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '72px',
+      color: '#FFEB3B',
+      stroke: '#000000',
+      strokeThickness: 8,
+    }).setOrigin(0.5, 0.5);
+
+    this.announceDonor = this.add.text(0, 60, '', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '36px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5, 0.5);
+
+    this.announceContainer.add([this.announceTrigger, this.announceDonor]);
+  }
+
+  showAnnouncement(triggerLabel, donor, color = '#FFEB3B') {
+    this.announceTrigger.setText(triggerLabel);
+    this.announceTrigger.setColor(color);
+    this.announceDonor.setText(donor ? `from ${donor}` : '');
+
+    this.announceContainer.setVisible(true);
+    this.announceContainer.setAlpha(0);
+    this.announceContainer.setScale(0.6);
+
+    this.tweens.killTweensOf(this.announceContainer);
+    this.tweens.add({
+      targets: this.announceContainer,
+      alpha: 1,
+      scale: 1.0,
+      duration: 280,
+      ease: 'Back.easeOut',
+    });
+    // 2.5초 후 페이드 아웃
+    this.time.delayedCall(2500, () => {
+      this.tweens.add({
+        targets: this.announceContainer,
+        alpha: 0,
+        duration: 400,
+        onComplete: () => this.announceContainer.setVisible(false),
+      });
+    });
   }
 
   update() {
@@ -226,11 +281,18 @@ export class UIScene extends Phaser.Scene {
         if (this.buffIndicators.has(id)) return;  // 이미 표시 중이면 새로 안 만듦 (잔여시간만 갱신됨)
         const label = params.label ?? id;
         const color = id === 'drillRangeUp' ? 0xFF9800
-                    : id === 'drillSpeedUp' ? 0x4CAF50
-                    : id === 'engineUp'     ? 0x03A9F4
+                    : id === 'drillPowerUp' ? 0x4CAF50
                     :                          0xFFEB3B;
         this._addBuffIndicator(id, label, color);
-        this._pushEvent(label, '');
+      });
+    }
+
+    // 트리거 발동 시 가운데 announcement + 이벤트 피드
+    if (this.triggerSystem) {
+      this.triggerSystem.on('fire', ({ triggerId, def, donor }) => {
+        const colorHex = '#' + def.color.toString(16).padStart(6, '0');
+        this.showAnnouncement(def.label, donor, colorHex);
+        this._pushEvent(`${def.label}!`, `from ${donor}`);
       });
     }
 

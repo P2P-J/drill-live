@@ -126,6 +126,36 @@ export class TileMap {
     return tile.ore;
   }
 
+  // 후원 트리거(GOLD_RUSH, GEM_DROP 등)로 광물 강제 생성
+  // 이미 destroy된 타일은 변환 불가. 벽도 안 됨. true 반환 = 성공.
+  convertToOre(tileX, tileY, ore) {
+    const tile = this.getTileAt(tileX, tileY);
+    if (!tile || tile.destroyed || tile.isWall) return false;
+
+    // 기존 광물 sprite 제거
+    tile.gemSprite?.destroy();
+
+    const gemKey = ensureGemTexture(this.scene, ore.id);
+    const cx = tile.worldX + GAME.tileSize / 2;
+    const cyPx = tile.worldY + GAME.tileSize / 2;
+    const sprite = this.scene.add.image(cx, cyPx, gemKey);
+    sprite.setDepth(5);
+
+    // 등장 애니메이션 (살짝 튀어오르듯)
+    sprite.setScale(0);
+    this.scene.tweens.add({
+      targets: sprite,
+      scaleX: 1.0,
+      scaleY: 1.0,
+      duration: 280,
+      ease: 'Back.easeOut',
+    });
+
+    tile.ore = ore;
+    tile.gemSprite = sprite;
+    return true;
+  }
+
   _key(tileX, tileY) {
     return `${tileX},${tileY}`;
   }
