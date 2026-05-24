@@ -51,9 +51,9 @@ export class ExplosionEffect {
     this.tileMap = tileMap;
   }
 
-  // 후원 폭탄 트리거 - 위에서 TNT가 떨어져서 폭발
-  // opts: { radius, color, label, tntScale, durationMs, shake, dropFromTilesAbove }
-  drop(targetX, targetY, opts = {}) {
+  // 후원 폭탄 트리거 - TNT가 위에서 떨어져서 땅에 닿고, 1초간 치지직 후 폭발
+  // opts: { radius, color, label, tntScale, shake, dropFromTilesAbove }
+  drop(targetX, drillY, opts = {}) {
     const radius = opts.radius ?? 1.5;
     const color = opts.color ?? 0xD32F2F;
     const label = opts.label ?? 'BOMB';
@@ -63,39 +63,137 @@ export class ExplosionEffect {
 
     const tntKey = ensureTntTexture(this.scene, `tnt-${color.toString(16)}`, color);
 
-    const startY = targetY - dropTiles * T;
+    // 드릴 크기와 무관하게 첫 번째 살아있는 타일(=땅)을 찾아 그 위에 폭탄을 안착시킴
+    const ground = this._findGround(targetX, drillY);
+    const tntLandY = ground.tileY * T - T / 2;     // TNT 중심이 타일 위에 얹힘
+    const explosionY = ground.tileY * T + T / 2;   // 폭발 중심은 그 타일 중앙
+
+    const startY = drillY - dropTiles * T;  // 화면 위쪽에서 시작
     const tnt = this.scene.add.image(targetX, startY, tntKey);
     tnt.setScale(tntScale);
     tnt.setDepth(80);
 
-    // 라벨 텍스트 (TNT 박스 위에 표시)
     const labelText = this.scene.add.text(targetX, startY, label, {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: `${Math.floor(16 * tntScale)}px`,
       color: '#000000',
     }).setOrigin(0.5, -1.0).setDepth(81);
 
-    // 낙하 (가속도 느낌)
+    // 낙하 (가속도)
     const fallDuration = 600;
     this.scene.tweens.add({
-      targets: [tnt, labelText],
-      y: targetY,
+      targets: tnt,
+      y: tntLandY,
+      duration: fallDuration,
+      ease: 'Quad.easeIn',
+    });
+    this.scene.tweens.add({
+      targets: labelText,
+      y: tntLandY,
       duration: fallDuration,
       ease: 'Quad.easeIn',
       onComplete: () => {
-        tnt.destroy();
-        labelText.destroy();
-        this._explode(targetX, targetY, { radius, color, shake });
+        // 착지 → 1초 치지직 → 폭발
+        // TODO(sound): scene.sound.play('bomb_sizzle')
+        this._sizzle(tnt, labelText, () => {
+          tnt.destroy();
+          labelText.destroy();
+          // TODO(sound): scene.sound.play(`bomb_${label.toLowerCase()}`)
+          this._explode(targetX, explosionY, { radius, color, shake });
+        });
       },
     });
 
-    // 떨어지는 동안 살짝 흔들기 (도화선이 타는 느낌)
+    // 떨어지는 동안 살짝 흔들기
     this.scene.tweens.add({
       targets: tnt,
       angle: { from: -6, to: 6 },
       duration: 120,
       yoyo: true,
       repeat: Math.floor(fallDuration / 240),
+    });
+  }
+
+  // 첫 번째 살아있는 타일(=땅) 찾기. drillBottomY = 드릴 sprite의 시각적 바닥.
+  // 큰 드릴이면 더 아래까지 스캔해서 드릴 비주얼과 안 겹치게 함.
+  _findGround(targetX, drillBottomY) {
+    const xOffset = this.tileMap.xOffset;
+    const tileX = Math.floor((targetX - xOffset) / T);
+    let tileY = Math.max(0, Math.floor(drillBottomY / T));
+    for (let i = 0; i < 80; i++) {
+      const tile = this.tileMap.getTileAt(tileX, tileY);
+      if (tile && !tile.destroyed && !tile.isWall) {
+        return { tileX, tileY };
+      }
+      tileY++;
+    }
+    return { tileX, tileY: Math.floor(drillBottomY / T) + 3 };
+  }
+
+  // 치지직 1초 — 도화선 타들어가는 느낌의 시각 효과 (사운드는 추후 연결)
+  _sizzle(tnt, labelText, onDone) {
+    const sizzleMs = 1000;
+    const startX = tnt.x;
+    const startY = tnt.y;
+
+    // 떨림
+    const shakeTween = this.scene.tweens.add({
+      targets: tnt,
+      x: { from: startX - 4, to: startX + 4 },
+      duration: 70,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    // 명암 반복 (점점 빨라짐 효과는 ease로 흉내)
+    const flashTween = this.scene.tweens.add({
+      targets: tnt,
+      alpha: { from: 1.0, to: 0.45 },
+      duration: 110,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    // 도화선 불꽃 입자 — TNT 위쪽에서 튄다
+    const sparkEvent = this.scene.time.addEvent({
+      delay: 60,
+      repeat: Math.floor(sizzleMs / 60) - 1,
+      callback: () => {
+        const sx = tnt.x + (Math.random() - 0.5) * 14;
+        const sy = tnt.y - 30 * (tnt.scale ?? 1);
+        const c = Math.random() < 0.5 ? 0xFFEB3B : 0xFF9800;
+        const p = this.scene.add.rectangle(sx, sy, 4, 4, c);
+        p.setDepth(86);
+        this.scene.tweens.add({
+          targets: p,
+          x: sx + (Math.random() - 0.5) * 18,
+          y: sy - 16 - Math.random() * 12,
+          alpha: 0,
+          scale: 0.2,
+          duration: 260,
+          ease: 'Quad.easeOut',
+          onComplete: () => p.destroy(),
+        });
+      },
+    });
+
+    // 라벨도 같이 살짝 진동
+    this.scene.tweens.add({
+      targets: labelText,
+      x: { from: labelText.x - 3, to: labelText.x + 3 },
+      duration: 90,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.scene.time.delayedCall(sizzleMs, () => {
+      shakeTween.stop();
+      flashTween.stop();
+      sparkEvent.remove();
+      tnt.x = startX;
+      tnt.y = startY;
+      tnt.alpha = 1;
+      onDone();
     });
   }
 
@@ -159,8 +257,7 @@ export class ExplosionEffect {
         const ty = centerTileY + dy;
         const tile = this.tileMap.getTileAt(tx, ty);
         if (!tile || tile.destroyed) continue;
-        // 폭탄은 벽도 깨뜨릴 수 있게 (반경 클 때만)
-        if (tile.isWall && radius < 3) continue;
+        if (tile.isWall && radius < 3) continue;  // 작은 폭탄은 벽 못 깸
         this.tileMap.destroyTile(tx, ty);
       }
     }

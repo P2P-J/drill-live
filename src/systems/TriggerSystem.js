@@ -77,8 +77,11 @@ export class TriggerSystem {
 
   _handleBomb(def) {
     const targetX = this.driller.worldX;
-    const targetY = this.driller.y + this.driller.tileSize;  // 드릴 바로 아래
-    this.explosionEffect.drop(targetX, targetY, {
+    // 드릴 sprite 텍스처는 64x96, origin (0.5, 0.333) — sprite 바닥 = drill.y + 64*scale
+    // 큰 드릴이어도 sprite 바닥 아래에서 땅을 찾도록.
+    const drillScale = this.driller.sprite?.scaleY ?? 1.0;
+    const drillVisualBottomY = this.driller.y + 64 * drillScale;
+    this.explosionEffect.drop(targetX, drillVisualBottomY, {
       radius: def.radius,
       color: def.color,
       label: def.label,
