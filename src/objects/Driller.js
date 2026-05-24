@@ -66,9 +66,15 @@ export class Driller {
     this.drillRange = newRange;
   }
 
-  // 드릴이 시각적으로 더 커져서 더 넓은 범위를 캐는 듯한 느낌
+  // 드릴 크기가 채굴 반경에 맞춰 확연히 커짐 (범위 = 드릴 크기 일치감)
+  // mining radius = 1.8 + (range-1) * 1.5 (tile)
+  // drill scale ≈ mining radius (1 tile = scale 1.0 기준)
   _tweenScaleForRange(range) {
-    const targetScale = 1.0 + (range - 1) * 0.35;
+    const targetScale = 1.0 + (range - 1) * 1.7;
+    // range 1: 1.0 (드릴 1 타일)
+    // range 2: 2.7
+    // range 3: 4.4 (버프 활성 시 — 드릴이 4타일 이상)
+    // range 5: 7.8
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
       targets: this.sprite,
