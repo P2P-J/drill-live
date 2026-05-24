@@ -12,9 +12,9 @@ export const GAME = {
   mapTilesX: 11,
   wallLeftX: 0,    // 좌측 벽 타일 인덱스
   wallRightX: 12,  // 우측 벽 타일 인덱스
-  baseDrillSpeed: 120,          // 기본 수직 낙하 속도 px/s (수직 비중 더 강하게)
-  bounceSpeed: 45,              // 기본 좌우 이동 속도 px/s (수평 절반으로)
-  minePerTileSeconds: 0.32,
+  baseDrillSpeed: 140,          // 수직 낙하 (메인 동작)
+  bounceSpeed: 12,              // 좌우 모션 거의 0 (살짝만 흘러)
+  minePerTileSeconds: 0.30,
 };
 
 export const SURFACE_PADDING_TILES = 4;
