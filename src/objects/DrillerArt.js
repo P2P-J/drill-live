@@ -11,13 +11,21 @@ function ensureTex(scene, key, w, h, drawFn) {
   return key;
 }
 
-// 통합 드릴머신: 본체 + 헬멧 + 드릴 비트 + 트랙이 한 텍스처로 합쳐짐.
-// 컨테이너가 회전하면 전체가 한 덩어리로 회전 (본체/비트 분리 안 됨).
-// 텍스처 크기: 64x96 (세로로 길게 — 본체 위쪽, 드릴 비트 아래쪽)
+// 사용자 PNG (`/public/assets/drill.png`) 우선. 없으면 procedural 폴백.
+// 텍스처 키 'driller' 통일 — BootScene이 PNG 미리 로드해두면 그대로 사용됨.
 export function ensureDrillerTexture(scene) {
+  // 1) PNG가 로드되어 있는지 확인 (BootScene preload)
+  if (scene.textures.exists('driller')) {
+    const tex = scene.textures.get('driller');
+    const src = tex.getSourceImage?.();
+    if (src && src.width > 4 && !tex._procedural) {
+      return 'driller';
+    }
+  }
+  // 2) Procedural 폴백
   const w = T;
-  const h = Math.floor(T * 1.5);  // 96
-  return ensureTex(scene, 'driller', w, h, (g) => {
+  const h = Math.floor(T * 1.5);
+  const key = ensureTex(scene, 'driller', w, h, (g) => {
     const cx = w / 2;
     // 좌표 기준: 본체 중심 = y 32 (위쪽 1/3 지점)
     const bodyCy = 32;
@@ -102,4 +110,9 @@ export function ensureDrillerTexture(scene) {
     g.fillStyle(0xffffff, 0.9);
     g.fillRect(cx - bitHalfW + 3, bitTop + 3, 4, 4);
   });
+  // procedural 표시 (PNG와 구별)
+  if (scene.textures.exists(key)) {
+    scene.textures.get(key)._procedural = true;
+  }
+  return key;
 }

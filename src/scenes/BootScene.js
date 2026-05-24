@@ -8,17 +8,15 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    // 사용자 드릴 PNG가 /public/assets/drill.png 에 있으면 자동 로드.
+    this.load.image('driller', '/assets/drill.png');
+
     // 보스 PNG가 /public/assets/bosses/<id>.png 에 있으면 자동 로드.
-    // 없으면 procedural 폴백 (BossArt.js의 기본 디자인).
     for (const id of BOSS_IDS) {
       this.load.image(`boss-${id}`, `/assets/bosses/${id}.png`);
     }
-    // 로드 실패는 조용히 무시 (콘솔 경고만)
-    this.load.on('loaderror', (file) => {
-      if (file?.key?.startsWith?.('boss-')) {
-        // 보스 PNG 없음 — procedural로 그릴 거니까 OK
-      }
-    });
+    // 로드 실패는 조용히 무시 (procedural 폴백 동작)
+    this.load.on('loaderror', () => {});
   }
 
   create() {

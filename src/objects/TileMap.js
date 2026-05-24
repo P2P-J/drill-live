@@ -3,6 +3,7 @@ import {
   ensureDirtTexture,
   ensureWallTexture,
   ensureGemTexture,
+  ensureCrackTexture,
   tileHash,
 } from './TileArt.js';
 
@@ -98,6 +99,7 @@ export class TileMap {
     for (const tile of chunk.tiles.values()) {
       tile.sprite?.destroy();
       tile.gemSprite?.destroy();
+      tile.crackSprite?.destroy();
       this.tileGrid.delete(this._key(tile.tileX, tile.tileY));
     }
     this.chunks.delete(cy);
@@ -123,7 +125,22 @@ export class TileMap {
     tile.sprite = null;
     tile.gemSprite?.destroy();
     tile.gemSprite = null;
+    tile.crackSprite?.destroy();
+    tile.crackSprite = null;
     return tile.ore;
+  }
+
+  // 타일 위에 크랙 오버레이 표시 (0~4단계). 0이면 제거.
+  setCrackStage(tile, stage) {
+    if (!tile || tile.destroyed || tile.isWall) return;
+    tile.crackSprite?.destroy();
+    tile.crackSprite = null;
+    if (stage <= 0) return;
+    const key = ensureCrackTexture(this.scene, Math.min(4, stage));
+    const cx = tile.worldX + GAME.tileSize / 2;
+    const cy = tile.worldY + GAME.tileSize / 2;
+    tile.crackSprite = this.scene.add.image(cx, cy, key);
+    tile.crackSprite.setDepth(7);  // 광물(5)보다 위, 드릴(50)보다 아래
   }
 
   // 후원 트리거(GOLD_RUSH, GEM_DROP 등)로 광물 강제 생성

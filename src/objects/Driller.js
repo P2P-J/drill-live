@@ -21,11 +21,13 @@ export class Driller {
     this.container = scene.add.container(this.worldX, this.y);
     this.container.setDepth(50);
 
-    // 텍스처 64x96. 본체 중심이 텍스처 y=32 (96 * 0.333).
-    // sprite 위치 (0, 0) + origin (0.5, 0.333) = 본체 중심이 컨테이너 원점에 정확히 일치.
-    // (이전 코드는 추가 16px 오프셋이 있어서 collision 위치와 비주얼 어긋났음 → 깜빡임 원인)
+    // 본체 바닥 = 컨테이너 원점 (드릴 비트는 origin 아래로 돌출).
+    // origin Y = 0.7 → 텍스처의 70% 지점이 anchor.
+    //   상단 70% = 본체(빨간 등 + 노란 몸통 + 트레드)
+    //   하단 30% = 드릴 비트 (땅으로 들어가는 부분)
+    // 이로써 drill.y = 본체 바닥 위치. 비트만 타일 안으로 박힘.
     this.sprite = scene.add.image(0, 0, drillerKey);
-    this.sprite.setOrigin(0.5, 0.333);
+    this.sprite.setOrigin(0.5, 0.7);
 
     this.container.add(this.sprite);
 
@@ -199,23 +201,27 @@ export class Driller {
     }
     this.worldX = newX;
 
-    // 회전 제거 — 회전이 큰 sprite에서 가장자리 깨짐 유발했음.
-    // 채굴 진동은 sprite 위치 미세 흔들기로 대체.
+    // 회전 없음. 채굴 중 상하 반동(드릴 두들기는 느낌) — sprite.y로 표현.
     this.container.rotation = 0;
     if (this.isMining) {
-      this._wobble += dt * 28;
-      this.sprite.x = Math.sin(this._wobble) * 1.5;
+      // 1 타일 = 5번 타격 사이클. 각 타격: 빠르게 내려가서 contact → 위로 튕김
+      const cyclesPerTile = 5;
+      const t = ((this.mineProgress / GAME.minePerTileSeconds) * cyclesPerTile) % 1;
+      // contact = t==0, peak rebound = t≈0.4, 다시 내려 = t→1
+      // sin(t * PI) → 0 at 0/1, 1 at 0.5
+      const reboundOffset = -Math.sin(t * Math.PI) * 8;  // 위로 8px 튕김
+      this.sprite.y = reboundOffset;
+      this.sprite.x = 0;
     } else {
-      this._wobble = 0;
+      this.sprite.y = 0;
       this.sprite.x = 0;
     }
 
-    // 아래쪽 타일 검사
+    // 아래쪽 타일 검사 — drill.y = 본체 바닥 = 비트 시작점.
+    // 본체 바닥이 타일 윗변에 닿거나 그 아래로 가면 mining 시작 (비트가 타일을 파고듦).
     const currentTileX = Math.floor((this.worldX - this.xOffset) / this.tileSize);
-    const halfH = this.tileSize / 2;
-    const drillerBottom = this.y + halfH;
     const epsilon = 1;
-    const nextTileY = Math.floor((drillerBottom + epsilon) / this.tileSize);
+    const nextTileY = Math.floor((this.y + epsilon) / this.tileSize);
 
     const blocker = this.tileMap.getTileAt(currentTileX, nextTileY);
 
@@ -223,13 +229,19 @@ export class Driller {
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;
 
+      // 타일 크랙 단계 갱신 (0 → 4)
+      const crackStage = Math.min(4, Math.floor((this.mineProgress / GAME.minePerTileSeconds) * 5));
+      if ((blocker._crackStage ?? 0) !== crackStage) {
+        blocker._crackStage = crackStage;
+        this.tileMap.setCrackStage(blocker, crackStage);
+      }
+
       if (this.mineProgress >= GAME.minePerTileSeconds) {
         this._mineSemicircle(nextTileY, currentTileX);
         this.mineProgress = 0;
       } else {
-        // 스냅 — 단, 부드럽게 (이전 즉시 클램프는 깜빡임 원인). 현재 y가 snapY를
-        // 넘었으면 차이의 50%만 끌어올려 점프감 제거.
-        const snapY = nextTileY * this.tileSize - halfH;
+        // 스냅 — 본체 바닥이 타일 윗변에 자리잡도록.
+        const snapY = nextTileY * this.tileSize;
         if (this.y > snapY) {
           this.y = this.y - (this.y - snapY) * 0.5;
         }

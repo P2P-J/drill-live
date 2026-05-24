@@ -329,3 +329,62 @@ export function ensureGemTexture(scene, oreId) {
   if (!drawer) return null;
   return ensureTexture(scene, key, (g) => drawer(g));
 }
+
+// ── 크랙 텍스처 (4단계, 타일 위에 오버레이) ──
+export function ensureCrackTexture(scene, stage) {
+  const key = `crack-${stage}`;
+  return ensureTexture(scene, key, (g) => {
+    const t = TILE_PX;
+    const opacity = 0.55 + stage * 0.1;
+
+    // 단계 1: 가는 균열 1줄
+    g.lineStyle(2, 0x000000, opacity);
+    g.beginPath();
+    g.moveTo(t * 0.28, t * 0.18);
+    g.lineTo(t * 0.42, t * 0.42);
+    g.lineTo(t * 0.5, t * 0.5);
+    g.strokePath();
+
+    if (stage >= 2) {
+      // 단계 2: 분기 균열
+      g.beginPath();
+      g.moveTo(t * 0.5, t * 0.5);
+      g.lineTo(t * 0.68, t * 0.75);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(t * 0.42, t * 0.42);
+      g.lineTo(t * 0.22, t * 0.6);
+      g.strokePath();
+    }
+    if (stage >= 3) {
+      // 단계 3: 더 많은 갈래 + 두꺼워짐
+      g.lineStyle(3, 0x000000, opacity);
+      g.beginPath();
+      g.moveTo(t * 0.7, t * 0.15);
+      g.lineTo(t * 0.5, t * 0.5);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(t * 0.5, t * 0.5);
+      g.lineTo(t * 0.85, t * 0.55);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(t * 0.22, t * 0.6);
+      g.lineTo(t * 0.15, t * 0.85);
+      g.strokePath();
+    }
+    if (stage >= 4) {
+      // 단계 4: 완전히 깨지기 직전 — 가장자리도 균열
+      g.lineStyle(4, 0x000000, 0.95);
+      g.beginPath();
+      g.moveTo(t * 0.05, t * 0.3);
+      g.lineTo(t * 0.5, t * 0.5);
+      g.lineTo(t * 0.95, t * 0.45);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(t * 0.4, t * 0.05);
+      g.lineTo(t * 0.5, t * 0.5);
+      g.lineTo(t * 0.45, t * 0.95);
+      g.strokePath();
+    }
+  });
+}
