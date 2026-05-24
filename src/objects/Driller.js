@@ -22,12 +22,16 @@ export class Driller {
     this.container.setDepth(50);
 
     // 본체 바닥 = 컨테이너 원점 (드릴 비트는 origin 아래로 돌출).
-    // origin Y = 0.7 → 텍스처의 70% 지점이 anchor.
-    //   상단 70% = 본체(빨간 등 + 노란 몸통 + 트레드)
-    //   하단 30% = 드릴 비트 (땅으로 들어가는 부분)
-    // 이로써 drill.y = 본체 바닥 위치. 비트만 타일 안으로 박힘.
+    // origin Y = 0.7 → 텍스처 70% 지점이 anchor (상단 70%=본체, 하단 30%=비트).
     this.sprite = scene.add.image(0, 0, drillerKey);
     this.sprite.setOrigin(0.5, 0.7);
+
+    // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
+    // 목표: 기본 상태에서 드릴 폭 ≈ 64px (1 타일). 큰 PNG여도 자동 축소.
+    const srcImg = scene.textures.get(drillerKey).getSourceImage?.();
+    const naturalW = (srcImg && srcImg.width) || 64;
+    this._baseScale = 64 / naturalW;
+    this.sprite.setScale(this._baseScale);
 
     this.container.add(this.sprite);
 
@@ -161,15 +165,11 @@ export class Driller {
     this.isMining = false;
   }
 
-  // 드릴 크기가 채굴 반경에 맞춰 확연히 커짐 (범위 = 드릴 크기 일치감)
-  // mining radius = 1.8 + (range-1) * 1.5 (tile)
-  // drill scale ≈ mining radius (1 tile = scale 1.0 기준)
+  // 드릴 크기를 채굴 반경에 맞춰 확장.
+  // baseScale (텍스처 크기 보정) × rangeMultiplier 로 최종 scale 계산.
   _tweenScaleForRange(range) {
-    const targetScale = 1.0 + (range - 1) * 1.7;
-    // range 1: 1.0 (드릴 1 타일)
-    // range 2: 2.7
-    // range 3: 4.4 (버프 활성 시 — 드릴이 4타일 이상)
-    // range 5: 7.8
+    const mult = 1.0 + (range - 1) * 1.7;
+    const targetScale = (this._baseScale ?? 1.0) * mult;
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
       targets: this.sprite,
