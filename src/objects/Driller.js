@@ -122,17 +122,16 @@ export class Driller {
     }
     this.worldX = newX;
 
-    // ── 회전: 본체+비트 한 덩어리 ──
-    // 낙하 중에는 회전 없음 (이전 ±0.18 rad 상시 기울기는 깜빡임으로 보였음).
-    // 채굴 중에만 작은 진동 (드릴이 박는 느낌).
-    let rotation = 0;
+    // 회전 제거 — 회전이 큰 sprite에서 가장자리 깨짐 유발했음.
+    // 채굴 진동은 sprite 위치 미세 흔들기로 대체.
+    this.container.rotation = 0;
     if (this.isMining) {
-      this._wobble += dt * 22;
-      rotation = Math.sin(this._wobble) * 0.04;
+      this._wobble += dt * 28;
+      this.sprite.x = Math.sin(this._wobble) * 1.5;
     } else {
       this._wobble = 0;
+      this.sprite.x = 0;
     }
-    this.container.rotation = rotation;
 
     // 아래쪽 타일 검사
     const currentTileX = Math.floor((this.worldX - this.xOffset) / this.tileSize);
@@ -151,8 +150,12 @@ export class Driller {
         this._mineSemicircle(nextTileY, currentTileX);
         this.mineProgress = 0;
       } else {
+        // 스냅 — 단, 부드럽게 (이전 즉시 클램프는 깜빡임 원인). 현재 y가 snapY를
+        // 넘었으면 차이의 50%만 끌어올려 점프감 제거.
         const snapY = nextTileY * this.tileSize - halfH;
-        this.y = Math.min(this.y, snapY);
+        if (this.y > snapY) {
+          this.y = this.y - (this.y - snapY) * 0.5;
+        }
       }
     } else {
       this.isMining = false;

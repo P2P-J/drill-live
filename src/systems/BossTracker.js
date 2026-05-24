@@ -1,7 +1,8 @@
 import { BOSSES, BOSS_WARNING_STEPS } from '../config/bosses.js';
 import { Boss } from '../objects/Boss.js';
 
-// 깊이 추적 → 보스 등장 예고 / 소환 / 처치·실패 후처리
+// 깊이 추적 → 보스 예고 / 소환 / 처치·실패 후처리
+// 드릴은 보스와 무관하게 계속 채굴. 보스가 드릴을 따라오며 접촉 시 자동 데미지.
 export class BossTracker {
   constructor(scene, deps) {
     this.scene = scene;
@@ -11,7 +12,7 @@ export class BossTracker {
 
     this.activeBoss = null;
     this._defeatedIds = new Set();
-    this._warningsShown = new Set();  // 보스별로 발동한 경고 단계
+    this._warningsShown = new Set();
     this._listeners = new Map();
   }
 
@@ -25,16 +26,21 @@ export class BossTracker {
     if (set) for (const fn of set) fn(payload);
   }
 
-  // 매 프레임 호출
-  update(depthM) {
-    if (this.activeBoss) return;  // 보스 활성 중에는 새 보스 안 봄
+  update(depthM, delta) {
+    // 활성 보스가 있으면 follow + damage 처리
+    if (this.activeBoss) {
+      if (this.activeBoss.alive) {
+        this.activeBoss.update(delta, this.driller);
+      }
+      return;
+    }
 
+    // 미처치 보스 중 가장 가까운 것 찾아 경고
     const next = this._nextBoss(depthM);
     if (!next) return;
 
     const remaining = next.depthM - depthM;
 
-    // 단계별 경고
     for (const step of BOSS_WARNING_STEPS) {
       const key = `${next.id}-${step.remainingM}`;
       if (remaining <= step.remainingM && !this._warningsShown.has(key)) {
@@ -43,39 +49,28 @@ export class BossTracker {
       }
     }
 
-    // 도달 → 소환
     if (remaining <= 0) {
       this.spawn(next);
     }
   }
 
   _nextBoss(depthM) {
-    return BOSSES.find(b => !this._defeatedIds.has(b.id) && b.depthM > depthM - 200) ??
-           BOSSES.find(b => !this._defeatedIds.has(b.id));
+    return BOSSES.find(b => !this._defeatedIds.has(b.id));
   }
 
   spawn(def) {
     if (this.activeBoss) return;
 
-    // 드릴 아래쪽에 빈 공간(아레나) 만들기 — 6타일 폭 × 8타일 깊이
-    const T = 64;
-    const drillTileX = Math.floor((this.driller.worldX - this.tileMap.xOffset) / T);
-    const arenaTopTileY = Math.floor((this.driller.y + T) / T);
-    const halfW = 3;
-    for (let dy = 0; dy <= 8; dy++) {
-      for (let dx = -halfW; dx <= halfW; dx++) {
-        this.tileMap.destroyTile(drillTileX + dx, arenaTopTileY + dy);
-      }
-    }
-
-    // 보스를 아레나 중앙에 배치
-    const bossX = this.tileMap.xOffset + drillTileX * T + T / 2;
-    const bossY = (arenaTopTileY + 4) * T;
+    // 드릴 바로 아래에 보스 등장 (아레나 클리어 안 함 — 드릴 계속 채굴)
+    const bossX = this.driller.worldX;
+    const bossY = this.driller.y + 250;  // 드릴 아래
 
     const boss = new Boss(this.scene, def, bossX, bossY, {
       tileMap: this.tileMap,
+      driller: this.driller,
       onDefeated: (b) => this._onBossDefeated(b),
       onFailed: (b) => this._onBossFailed(b),
+      onDamage: (amount, b) => this._emit('damage', { boss: b, amount }),
     });
 
     this.activeBoss = boss;
@@ -91,7 +86,6 @@ export class BossTracker {
   _onBossFailed(boss) {
     this._defeatedIds.add(boss.def.id);
     this.activeBoss = null;
-    // 페널티 — 드릴 속도 일시 감소
     if (boss.def.failPenalty && this.buffSystem) {
       this.buffSystem.apply('drillPowerUp', {
         mult: boss.def.failPenalty.speedMult,
@@ -101,13 +95,11 @@ export class BossTracker {
     this._emit('failed', { boss });
   }
 
-  // 디버그 — 다음 보스 강제 소환
   forceSpawnNext() {
     const next = BOSSES.find(b => !this._defeatedIds.has(b.id));
     if (next) this.spawn(next);
   }
 
-  // 디버그 — 처치 기록 리셋
   resetDefeated() {
     this._defeatedIds.clear();
     this._warningsShown.clear();

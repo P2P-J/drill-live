@@ -156,15 +156,13 @@ export class GameScene extends Phaser.Scene {
 
   update(_time, delta) {
     this.buffSystem.update();
-    // 보스 활성 중에는 드릴 정지
-    if (!this.bossTracker.activeBoss) {
-      this.driller.update(delta);
-    }
+    // 드릴은 보스와 무관하게 계속 채굴 (보스 활성 중에도 움직임)
+    this.driller.update(delta);
     this.tileMap.update(this.driller.y);
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
-    this.bossTracker.update(km);
+    this.bossTracker.update(km, delta);
 
     // 배경 색상: 현재 바이옴 색의 25% 밝기로
     const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));

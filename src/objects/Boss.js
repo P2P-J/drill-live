@@ -16,40 +16,40 @@ export class Boss {
     this.maxHp = def.hp;
     this.hp = def.hp;
     this.tileMap = opts.tileMap;
+    this.driller = opts.driller;  // 따라갈 대상
     this.onDefeated = opts.onDefeated;
     this.onFailed = opts.onFailed;
+    this.onDamage = opts.onDamage;  // (amount) — UIScene 데미지 표시용
     this.x = x;
     this.y = y;
     this.alive = true;
+    this._lastTintAt = 0;
 
     const tex = ensureBossTexture(scene, def.id);
     const size = getBossArtSize(def.id);
+    this.size = size;
 
     this.container = scene.add.container(x, y);
     this.container.setDepth(45);
 
     this.sprite = scene.add.image(0, 0, tex);
-    this.sprite.setOrigin(0.5, 0.6);  // 발 쪽이 중심이라 살짝 아래로
-
+    this.sprite.setOrigin(0.5, 0.5);  // 중심 기준
     this.container.add(this.sprite);
 
-    // 등장 연출 — 작게 시작해서 부풀어오름
+    // 등장 연출
     this.sprite.setScale(0.1);
     this.sprite.setAlpha(0);
     scene.tweens.add({
       targets: this.sprite,
-      scaleX: 1.0,
-      scaleY: 1.0,
-      alpha: 1,
+      scaleX: 1.0, scaleY: 1.0, alpha: 1,
       duration: 600,
       ease: 'Back.easeOut',
     });
-    // 빛 플래시 (등장 임팩트)
-    const flash = scene.add.circle(x, y, Math.max(size.w, size.h) * 0.8, 0xffffff, 0.9);
+    const flash = scene.add.circle(x, y, Math.max(size.w, size.h) * 0.7, 0xffffff, 0.85);
     flash.setDepth(44);
     scene.tweens.add({
       targets: flash,
-      scale: 1.6,
+      scale: 1.8,
       alpha: 0,
       duration: 500,
       onComplete: () => flash.destroy(),
@@ -87,43 +87,90 @@ export class Boss {
     return this.hp / this.maxHp;
   }
 
+  // 매 프레임 호출. 드릴 따라가기 + 접촉 시 지속 데미지.
+  update(delta, driller) {
+    if (!this.alive) return;
+    const dt = delta / 1000;
+
+    // 부드러운 follow — 드릴 바로 아래에 자리. 드릴 폭(채굴 반경) 따라 거리 조정.
+    const drillScale = driller.sprite?.scaleY ?? 1.0;
+    const drillBottomOffset = 64 * drillScale + this.size.h * 0.5 + 30;  // 드릴 바닥 + 보스 반경 + 마진
+    const targetX = driller.worldX;
+    const targetY = driller.y + drillBottomOffset;
+
+    this.x += (targetX - this.x) * 0.08;
+    this.y += (targetY - this.y) * 0.08;
+    this.container.x = this.x;
+    this.container.y = this.y;
+
+    // 드릴과 거리 — 접촉 판정
+    const dx = driller.worldX - this.x;
+    const dy = driller.y - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const hitRadius = Math.max(this.size.w, this.size.h) * 0.5;
+
+    if (dist < hitRadius + 80) {
+      // 드릴이 접근/접촉 → 지속 데미지 (DPS = drillSpeedMult * 60)
+      const dps = 60 * (driller.drillSpeedMult ?? 1);
+      this._applyContinuousDamage(dps * dt);
+    }
+  }
+
+  _applyContinuousDamage(amount) {
+    if (!this.alive) return;
+    this.hp = Math.max(0, this.hp - amount);
+
+    // 가벼운 깜빡 효과 (180ms throttle)
+    const now = this.scene.time.now;
+    if (now - this._lastTintAt > 180) {
+      this._lastTintAt = now;
+      this.sprite.setTint(0xff8888);
+      this.scene.time.delayedCall(60, () => this.sprite.clearTint());
+    }
+
+    this.onDamage?.(amount, this);
+
+    if (this.hp <= 0) this._defeat();
+  }
+
+  // 폭탄 등 큰 데미지 — 강한 시각 효과
   takeDamage(amount, source = null) {
     if (!this.alive) return;
     this.hp = Math.max(0, this.hp - amount);
 
-    // 흰 깜빡
-    this.sprite.setTintFill(0xffffff);
-    this.scene.time.delayedCall(80, () => this.sprite.clearTint());
+    this.sprite.setTint(0xffffff);
+    this.scene.time.delayedCall(100, () => this.sprite.clearTint());
 
-    // 좌우 흔들기
+    // 흔들기
+    const baseX = this.x;
     this.scene.tweens.add({
       targets: this.container,
-      x: { from: this.x - 10, to: this.x + 10 },
-      duration: 40,
+      x: { from: baseX - 12, to: baseX + 12 },
+      duration: 45,
       yoyo: true,
       repeat: 4,
       onComplete: () => { this.container.x = this.x; },
     });
 
-    // 파티클
     const palette = BOSS_COLOR_PALETTE[this.def.id];
     this._spawnHitParticles(palette?.particle ?? 0xffffff);
+    this.onDamage?.(amount, this);
 
     if (this.hp <= 0) this._defeat();
   }
 
   _spawnHitParticles(color) {
-    const count = 8;
+    const count = 10;
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
-      const dist = 40 + Math.random() * 60;
-      const p = this.scene.add.rectangle(this.x, this.y - 40, 12, 12, color);
+      const dist = 50 + Math.random() * 80;
+      const p = this.scene.add.rectangle(this.x, this.y, 14, 14, color);
       p.setStrokeStyle(2, 0x000000, 0.7);
       p.setDepth(60);
       this.scene.tweens.add({
         targets: p,
         x: this.x + Math.cos(angle) * dist,
-        y: this.y - 40 + Math.sin(angle) * dist,
+        y: this.y + Math.sin(angle) * dist,
         alpha: 0,
         angle: 360,
         scaleX: 0.2,
@@ -143,14 +190,11 @@ export class Boss {
 
     const palette = BOSS_COLOR_PALETTE[this.def.id];
 
-    // 큰 폭발 이펙트
+    // 큰 폭발
     const flash = this.scene.add.circle(this.x, this.y, 200, 0xffffff, 0.95);
     flash.setDepth(85);
     this.scene.tweens.add({
-      targets: flash,
-      scale: 2.5,
-      alpha: 0,
-      duration: 600,
+      targets: flash, scale: 2.5, alpha: 0, duration: 600,
       onComplete: () => flash.destroy(),
     });
 
@@ -158,19 +202,35 @@ export class Boss {
     ring.setStrokeStyle(12, palette?.glow ?? 0xFFEB3B, 1);
     ring.setDepth(84);
     this.scene.tweens.add({
-      targets: ring,
-      radius: 400,
-      alpha: 0,
-      duration: 800,
+      targets: ring, radius: 500, alpha: 0, duration: 800,
       onComplete: () => ring.destroy(),
     });
 
-    // 파편 + 회전+축소 사라지기
+    // 큰 폭발 입자
+    for (let i = 0; i < 20; i++) {
+      const angle = (Math.PI * 2 * i) / 20 + Math.random() * 0.3;
+      const dist = 100 + Math.random() * 150;
+      const c = i % 2 ? (palette?.particle ?? 0xffffff) : (palette?.glow ?? 0xFFEB3B);
+      const p = this.scene.add.rectangle(this.x, this.y, 16, 16, c);
+      p.setStrokeStyle(2, 0x000000, 0.6);
+      p.setDepth(83);
+      this.scene.tweens.add({
+        targets: p,
+        x: this.x + Math.cos(angle) * dist,
+        y: this.y + Math.sin(angle) * dist,
+        alpha: 0,
+        angle: 360 * 2,
+        scaleX: 0.1,
+        scaleY: 0.1,
+        duration: 800 + Math.random() * 400,
+        ease: 'Quad.easeOut',
+        onComplete: () => p.destroy(),
+      });
+    }
+
     this.scene.tweens.add({
       targets: this.container,
-      scale: 0,
-      alpha: 0,
-      rotation: Math.PI * 2,
+      scale: 0, alpha: 0, rotation: Math.PI * 2,
       duration: 800,
       ease: 'Back.easeIn',
       onComplete: () => {
@@ -179,13 +239,11 @@ export class Boss {
       },
     });
 
-    // 광물 우수수 (보상)
-    this._spawnRewardOres(palette);
-
+    this._spawnRewardOres();
     this.scene.cameras.main.shake(600, 0.025);
   }
 
-  _spawnRewardOres(palette) {
+  _spawnRewardOres() {
     if (!this.tileMap) return;
     const ore = ORES[this.def.rewardOre];
     if (!ore) return;
@@ -197,18 +255,16 @@ export class Boss {
 
     let placed = 0;
     const candidates = [];
-    for (let dy = 0; dy <= 6; dy++) {
-      for (let dx = -5; dx <= 5; dx++) {
-        if (dx * dx + dy * dy > 30) continue;
+    for (let dy = 0; dy <= 8; dy++) {
+      for (let dx = -6; dx <= 6; dx++) {
+        if (dx * dx + dy * dy > 40) continue;
         candidates.push([centerTileX + dx, centerTileY + dy]);
       }
     }
-    // 셔플
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
-
     for (const [tx, ty] of candidates) {
       if (placed >= this.def.rewardCount) break;
       if (this.tileMap.convertToOre(tx, ty, ore)) placed++;
@@ -220,10 +276,9 @@ export class Boss {
     this.alive = false;
     this._idleTween?.stop();
 
-    // 도망/사라짐 — 화면 위쪽으로 빠짐
     this.scene.tweens.add({
       targets: this.container,
-      y: this.y - 600,
+      y: this.y - 700,
       alpha: 0,
       duration: 800,
       ease: 'Quad.easeIn',
@@ -234,7 +289,6 @@ export class Boss {
     });
   }
 
-  // 외부에서 호출 가능 (디버그용 — 즉시 처치)
   forceDefeat() {
     this.hp = 0;
     this._defeat();
