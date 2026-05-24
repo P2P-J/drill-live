@@ -90,246 +90,222 @@ export function ensureWallTexture(scene, variant = 0) {
   });
 }
 
-// ── 광물별 고유 드로잉 헬퍼 ──
+// ── 광물 공통: 작은 바위 베이스 (땅에서 솟아난 느낌) ──
+function drawRockyBase(g, dirtColor = 0x5a3a20) {
+  // 3개의 둥근 바위 조각이 하단에 흩어진 모양
+  const main = dirtColor;
+  const dark = darken(main, 0.55);
+  const light = lighten(main, 1.3);
 
-function drawDiamondShape(g, cx, cy, hw, hh, color) {
-  g.fillStyle(color, 1);
+  g.fillStyle(main, 1);
+  g.fillEllipse(18, 54, 16, 10);
+  g.fillEllipse(36, 56, 22, 10);
+  g.fillEllipse(50, 53, 14, 9);
+
+  // 어두운 경계
+  g.lineStyle(1.5, dark, 0.8);
+  g.strokeEllipse(18, 54, 16, 10);
+  g.strokeEllipse(36, 56, 22, 10);
+  g.strokeEllipse(50, 53, 14, 9);
+
+  // 윗부분 하이라이트
+  g.fillStyle(light, 0.85);
+  g.fillRect(13, 50, 5, 2);
+  g.fillRect(30, 52, 6, 2);
+  g.fillRect(46, 49, 4, 2);
+}
+
+// 반짝이 (광물 주변 작은 점들)
+function drawSparkles(g, color = 0xffffff) {
+  g.fillStyle(color, 0.95);
+  g.fillRect(8, 16, 3, 3);
+  g.fillRect(54, 22, 2, 2);
+  g.fillRect(48, 10, 2, 2);
+  g.fillRect(12, 38, 2, 2);
+  g.fillRect(56, 38, 3, 3);
+}
+
+// 단일 결정 (중심, 폭, 높이, 색)
+function drawShard(g, cx, baseY, hw, h, mainColor, edge = true) {
+  const dark = darken(mainColor, 0.45);
+  const light = lighten(mainColor, 1.6);
+
+  // 메인 결정 (위로 뾰족한 삼각형 + 직사각 베이스)
+  g.fillStyle(mainColor, 1);
   g.beginPath();
-  g.moveTo(cx, cy - hh);
-  g.lineTo(cx + hw, cy);
-  g.lineTo(cx, cy + hh);
-  g.lineTo(cx - hw, cy);
+  g.moveTo(cx, baseY - h);            // 정점
+  g.lineTo(cx + hw, baseY - h * 0.4); // 우측 어깨
+  g.lineTo(cx + hw * 0.85, baseY);    // 우측 베이스
+  g.lineTo(cx - hw * 0.85, baseY);    // 좌측 베이스
+  g.lineTo(cx - hw, baseY - h * 0.4); // 좌측 어깨
   g.closePath();
   g.fillPath();
-}
 
-function strokeDiamondShape(g, cx, cy, hw, hh, color, w) {
-  g.lineStyle(w, color, 1);
-  g.beginPath();
-  g.moveTo(cx, cy - hh);
-  g.lineTo(cx + hw, cy);
-  g.lineTo(cx, cy + hh);
-  g.lineTo(cx - hw, cy);
-  g.closePath();
-  g.strokePath();
-}
-
-function drawHexagon(g, cx, cy, r, color) {
-  g.fillStyle(color, 1);
-  g.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i - Math.PI / 2;
-    const x = cx + Math.cos(a) * r;
-    const y = cy + Math.sin(a) * r;
-    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  // 외곽선
+  if (edge) {
+    g.lineStyle(1.5, dark, 1);
+    g.strokePath();
   }
+
+  // 왼쪽 하이라이트 (반짝)
+  g.fillStyle(light, 0.85);
+  g.beginPath();
+  g.moveTo(cx - hw * 0.5, baseY - h * 0.85);
+  g.lineTo(cx - hw * 0.2, baseY - h * 0.85);
+  g.lineTo(cx - hw * 0.45, baseY - h * 0.2);
+  g.lineTo(cx - hw * 0.7, baseY - h * 0.2);
   g.closePath();
   g.fillPath();
 }
 
-function strokeHexagon(g, cx, cy, r, color, w) {
-  g.lineStyle(w, color, 1);
-  g.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i - Math.PI / 2;
-    const x = cx + Math.cos(a) * r;
-    const y = cy + Math.sin(a) * r;
-    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+// 청크 (불규칙 둥근 조각, 석탄/구리/철/금 같은 비결정 광물용)
+function drawChunk(g, cx, cy, w, h, mainColor, edge = true) {
+  const dark = darken(mainColor, 0.45);
+  const light = lighten(mainColor, 1.4);
+  g.fillStyle(mainColor, 1);
+  g.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 4);
+  if (edge) {
+    g.lineStyle(1.5, dark, 1);
+    g.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 4);
   }
-  g.closePath();
-  g.strokePath();
+  // 하이라이트
+  g.fillStyle(light, 0.85);
+  g.fillRect(cx - w / 2 + 3, cy - h / 2 + 2, Math.max(3, w * 0.35), 2);
 }
 
-function drawTriangle(g, cx, cy, hw, hh, color) {
-  g.fillStyle(color, 1);
-  g.beginPath();
-  g.moveTo(cx, cy - hh);
-  g.lineTo(cx + hw, cy + hh);
-  g.lineTo(cx - hw, cy + hh);
-  g.closePath();
-  g.fillPath();
-}
-
-// ── ORE 별 텍스처 ──
-// 각 광물이 자신만의 모양/패턴을 가지도록 개별 그리기.
-// outline 추가로 흙 위에서도 잘 보이게.
+// ── 광물별 그리기 ──
 
 function drawCoal(g) {
-  const c = 0x1a1a1a;
-  const cd = 0x000000;
-  const ch = 0x424242;
-  g.fillStyle(c, 1);
-  g.fillRoundedRect(8, 14, 18, 14, 4);
-  g.fillRoundedRect(28, 24, 20, 16, 4);
-  g.fillRoundedRect(14, 38, 16, 14, 4);
-  g.lineStyle(2, cd, 1);
-  g.strokeRoundedRect(8, 14, 18, 14, 4);
-  g.strokeRoundedRect(28, 24, 20, 16, 4);
-  g.strokeRoundedRect(14, 38, 16, 14, 4);
-  // 하이라이트
-  g.fillStyle(ch, 1);
-  g.fillRect(11, 17, 5, 2);
-  g.fillRect(31, 27, 6, 2);
-  g.fillRect(17, 41, 5, 2);
+  drawRockyBase(g, 0x5a3a20);
+  // 청흑색 석탄 덩어리 — 둥근 조각 3개를 살짝 겹치게
+  drawChunk(g, 22, 30, 16, 16, 0x2c3340);
+  drawChunk(g, 38, 26, 18, 18, 0x232a36);
+  drawChunk(g, 32, 18, 14, 14, 0x3a4150);
+  // 푸른 반짝 (석탄 광물의 특징)
+  g.fillStyle(0x6a8aa0, 0.9);
+  g.fillRect(26, 24, 2, 2);
+  g.fillRect(40, 22, 2, 2);
+  drawSparkles(g, 0x90a8c0);
 }
 
 function drawCopper(g) {
-  const c = 0xb87333;
-  const cd = 0x6d4c1d;
-  const ch = 0xd49354;
-  g.fillStyle(c, 1);
-  g.fillRoundedRect(8, 14, 20, 8, 3);
-  g.fillRoundedRect(28, 26, 24, 9, 3);
-  g.fillRoundedRect(12, 40, 22, 10, 3);
-  g.lineStyle(2, cd, 1);
-  g.strokeRoundedRect(8, 14, 20, 8, 3);
-  g.strokeRoundedRect(28, 26, 24, 9, 3);
-  g.strokeRoundedRect(12, 40, 22, 10, 3);
-  g.fillStyle(ch, 1);
-  g.fillRect(11, 16, 8, 2);
-  g.fillRect(31, 28, 10, 2);
-  g.fillRect(15, 42, 9, 2);
+  drawRockyBase(g, 0x5a3a20);
+  // 주황빛 구리 — 둥글둥글한 조각들
+  drawChunk(g, 22, 32, 14, 14, 0xa55a28);
+  drawChunk(g, 36, 28, 16, 16, 0xc26830);
+  drawChunk(g, 30, 18, 12, 12, 0xd47840);
+  drawChunk(g, 46, 36, 12, 10, 0x9c5024);
+  // 밝은 점
+  g.fillStyle(0xff9a4a, 1);
+  g.fillRect(24, 28, 3, 2);
+  g.fillRect(36, 24, 3, 2);
+  drawSparkles(g, 0xffb060);
 }
 
 function drawIron(g) {
-  const c = 0xd0d0d0;
-  const cd = 0x707070;
-  const cdot = 0x5a4530;
-  // 큰 은빛 원들
-  g.fillStyle(c, 1);
-  g.fillCircle(18, 22, 7);
-  g.fillCircle(42, 30, 9);
-  g.fillCircle(26, 44, 6);
-  g.lineStyle(2, cd, 1);
-  g.strokeCircle(18, 22, 7);
-  g.strokeCircle(42, 30, 9);
-  g.strokeCircle(26, 44, 6);
+  drawRockyBase(g, 0x5a3a20);
+  // 은빛 철 — 각진 조각 (각진 느낌으로 폴리곤)
+  g.fillStyle(0xc5c5c5, 1);
+  g.beginPath(); g.moveTo(14, 38); g.lineTo(24, 18); g.lineTo(34, 26); g.lineTo(30, 42); g.closePath(); g.fillPath();
+  g.lineStyle(1.5, 0x7a7a7a, 1); g.strokePath();
+
+  g.fillStyle(0xa8a8a8, 1);
+  g.beginPath(); g.moveTo(32, 40); g.lineTo(40, 18); g.lineTo(54, 24); g.lineTo(50, 44); g.closePath(); g.fillPath();
+  g.lineStyle(1.5, 0x6a6a6a, 1); g.strokePath();
+
+  // 하이라이트
+  g.fillStyle(0xf0f0f0, 0.85);
+  g.fillRect(18, 22, 4, 2);
+  g.fillRect(38, 22, 4, 2);
   // 갈색 점 (불순물)
-  g.fillStyle(cdot, 1);
-  g.fillRect(20, 21, 2, 2);
-  g.fillRect(45, 30, 2, 2);
+  g.fillStyle(0x7a4a20, 1);
+  g.fillRect(24, 34, 2, 2);
+  g.fillRect(46, 32, 2, 2);
+  drawSparkles(g, 0xeeeeee);
 }
 
 function drawGold(g) {
-  const c = 0xffd700;
-  const cd = 0xb8860b;
-  const ch = 0xfff59d;
-  g.fillStyle(c, 1);
-  g.fillRect(10, 14, 12, 12);
-  g.fillRect(30, 22, 14, 14);
-  g.fillRect(40, 14, 10, 10);
-  g.fillRect(16, 38, 14, 14);
-  g.fillRect(38, 42, 12, 12);
-  g.lineStyle(2, cd, 1);
-  g.strokeRect(10, 14, 12, 12);
-  g.strokeRect(30, 22, 14, 14);
-  g.strokeRect(40, 14, 10, 10);
-  g.strokeRect(16, 38, 14, 14);
-  g.strokeRect(38, 42, 12, 12);
-  g.fillStyle(ch, 1);
-  g.fillRect(12, 16, 4, 2);
-  g.fillRect(32, 24, 4, 2);
-  g.fillRect(18, 40, 4, 2);
+  drawRockyBase(g, 0x5a3a20);
+  // 금 너겟 — 작은 노란 덩어리들이 모여있는 모양
+  drawChunk(g, 20, 34, 10, 10, 0xf2c124);
+  drawChunk(g, 30, 28, 12, 12, 0xffd84a);
+  drawChunk(g, 42, 32, 11, 11, 0xf2c124);
+  drawChunk(g, 36, 20, 10, 10, 0xffe070);
+  drawChunk(g, 50, 38, 9, 9, 0xd9a818);
+  // 빛나는 점
+  g.fillStyle(0xfff5a0, 1);
+  g.fillRect(24, 32, 3, 2);
+  g.fillRect(32, 26, 3, 2);
+  g.fillRect(40, 22, 3, 2);
+  drawSparkles(g, 0xffeb3b);
 }
 
-// Crystal 계열 ─ 다이아몬드 모양
-function drawCrystal(g) {
-  // 큰 마름모 + 작은 마름모 2개
-  drawDiamondShape(g, 32, 32, 18, 22, 0xb39ddb);
-  strokeDiamondShape(g, 32, 32, 18, 22, 0x4a148c, 2);
-  drawDiamondShape(g, 32, 26, 9, 12, 0xe1d5f5);
-  drawDiamondShape(g, 14, 16, 5, 6, 0xb39ddb);
-  drawDiamondShape(g, 50, 50, 5, 6, 0xb39ddb);
-  // 반짝이
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(26, 22, 3, 3);
+function drawCrystalCluster(g, mainColor, rockBase = 0x4a4a4a) {
+  drawRockyBase(g, rockBase);
+  // 가운데 큰 결정 + 좌우 작은 결정 2개
+  drawShard(g, 32, 46, 8, 36, mainColor);
+  drawShard(g, 18, 48, 5, 22, mainColor);
+  drawShard(g, 48, 47, 6, 26, mainColor);
+  drawSparkles(g, lighten(mainColor, 1.6));
 }
 
-// Amethyst — 보라 결정 클러스터
-function drawAmethyst(g) {
-  // 3개 뾰족한 결정
-  drawTriangle(g, 24, 28, 8, 14, 0x9c27b0);
-  drawTriangle(g, 40, 32, 9, 16, 0x9c27b0);
-  drawTriangle(g, 32, 44, 7, 12, 0x9c27b0);
-  // 어두운 외곽
-  g.lineStyle(2, 0x4a148c, 1);
-  g.beginPath(); g.moveTo(24, 14); g.lineTo(32, 42); g.lineTo(16, 42); g.closePath(); g.strokePath();
-  g.beginPath(); g.moveTo(40, 16); g.lineTo(49, 48); g.lineTo(31, 48); g.closePath(); g.strokePath();
-  g.beginPath(); g.moveTo(32, 32); g.lineTo(39, 56); g.lineTo(25, 56); g.closePath(); g.strokePath();
-  // 밝은 코어
-  g.fillStyle(0xce93d8, 1);
-  g.fillTriangle(24, 18, 26, 28, 22, 28);
-  g.fillTriangle(40, 20, 42, 30, 38, 30);
-}
-
-function drawSapphire(g) {
-  drawDiamondShape(g, 32, 32, 20, 24, 0x2196f3);
-  strokeDiamondShape(g, 32, 32, 20, 24, 0x0d47a1, 3);
-  drawDiamondShape(g, 32, 28, 10, 12, 0xbbdefb);
-  // 반짝이
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(26, 22, 4, 4);
-  g.fillRect(40, 36, 2, 2);
-}
-
-function drawEmerald(g) {
-  drawHexagon(g, 32, 32, 22, 0x4caf50);
-  strokeHexagon(g, 32, 32, 22, 0x1b5e20, 3);
-  drawHexagon(g, 32, 32, 13, 0xc8e6c9);
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(26, 24, 4, 4);
-}
-
+function drawCrystal(g)  { drawCrystalCluster(g, 0xb39ddb, 0x4a4a4a); }
+function drawAmethyst(g) { drawCrystalCluster(g, 0x9c27b0, 0x3a2a4a); }
+function drawSapphire(g) { drawCrystalCluster(g, 0x2196f3, 0x2a3a4a); }
+function drawEmerald(g)  { drawCrystalCluster(g, 0x4caf50, 0x2a4a2a); }
 function drawDiamond(g) {
-  // 크고 빛나는 마름모
-  drawDiamondShape(g, 32, 32, 22, 26, 0xb9f6ca);
-  strokeDiamondShape(g, 32, 32, 22, 26, 0x004d40, 3);
-  // 내부 입체 라인
-  g.lineStyle(2, 0x80cbc4, 1);
-  g.beginPath();
-  g.moveTo(32, 6); g.lineTo(20, 18);
-  g.moveTo(32, 6); g.lineTo(44, 18);
-  g.moveTo(20, 18); g.lineTo(44, 18);
-  g.strokePath();
-  // 반짝이 별 모양
+  // 다이아: 더 큰 단일 결정 + 강한 광채
+  drawRockyBase(g, 0x4a4a4a);
+  drawShard(g, 32, 48, 10, 40, 0xb9f6ca);
+  drawShard(g, 18, 50, 4, 18, 0x80deea);
+  drawShard(g, 48, 49, 5, 22, 0x80deea);
+  // 가운데 별 모양 반짝 (다이아만의 특징)
   g.fillStyle(0xffffff, 1);
-  g.fillRect(28, 14, 4, 4);
-  g.fillRect(26, 16, 8, 1);
-  g.fillRect(30, 12, 1, 8);
+  g.fillRect(30, 22, 4, 4);
+  g.fillRect(28, 24, 8, 1);
+  g.fillRect(32, 18, 1, 12);
+  drawSparkles(g, 0xffffff);
 }
 
 function drawRuby(g) {
-  drawDiamondShape(g, 32, 32, 20, 24, 0xe53935);
-  strokeDiamondShape(g, 32, 32, 20, 24, 0x7f0000, 3);
-  drawDiamondShape(g, 32, 28, 10, 12, 0xff8a80);
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(26, 22, 4, 4);
+  // 루비: 진한 빨강 결정
+  drawRockyBase(g, 0x4a2020);
+  drawShard(g, 32, 47, 9, 38, 0xe53935);
+  drawShard(g, 18, 49, 5, 22, 0xc62828);
+  drawShard(g, 49, 48, 6, 26, 0xff5252);
+  drawSparkles(g, 0xff8a80);
 }
 
 function drawLavaCrystal(g) {
-  // 불꽃처럼 3개 뾰족한 결정
-  drawTriangle(g, 24, 28, 7, 18, 0xff5722);
-  drawTriangle(g, 40, 26, 8, 20, 0xff5722);
-  drawTriangle(g, 32, 44, 9, 14, 0xff5722);
-  g.lineStyle(2, 0x7b1a00, 1);
-  g.beginPath(); g.moveTo(24, 10); g.lineTo(31, 46); g.lineTo(17, 46); g.closePath(); g.strokePath();
-  g.beginPath(); g.moveTo(40, 6); g.lineTo(48, 46); g.lineTo(32, 46); g.closePath(); g.strokePath();
-  g.beginPath(); g.moveTo(32, 30); g.lineTo(41, 58); g.lineTo(23, 58); g.closePath(); g.strokePath();
-  g.fillStyle(0xffeb3b, 1);
-  g.fillTriangle(24, 16, 26, 26, 22, 26);
-  g.fillTriangle(40, 12, 43, 24, 37, 24);
+  // 용암 결정: 주황색 결정 + 그 위에 노란 광채
+  drawRockyBase(g, 0x4a2010);
+  drawShard(g, 32, 47, 9, 38, 0xff5722);
+  drawShard(g, 18, 49, 5, 22, 0xd84315);
+  drawShard(g, 49, 48, 6, 26, 0xffa726);
+  // 노란 핵심
+  g.fillStyle(0xffeb3b, 0.9);
+  g.fillTriangle(32, 18, 28, 32, 36, 32);
+  drawSparkles(g, 0xffeb3b);
 }
 
 function drawVoidStone(g) {
-  // 검은 마름모 + 보라 코어 + 작은 별들
-  drawDiamondShape(g, 32, 32, 22, 26, 0x1a1a2e);
-  strokeDiamondShape(g, 32, 32, 22, 26, 0x000000, 3);
-  drawDiamondShape(g, 32, 30, 11, 14, 0x673ab7);
-  // 별
+  // 공허석: 어두운 결정 + 보라 코어 + 별 반짝
+  drawRockyBase(g, 0x1a1a2e);
+  drawShard(g, 32, 47, 9, 38, 0x2a2050);
+  drawShard(g, 18, 49, 5, 22, 0x1a1538);
+  drawShard(g, 49, 48, 6, 26, 0x3a2a70);
+  // 보라 코어
+  g.fillStyle(0x7e57c2, 0.9);
+  g.fillTriangle(32, 22, 28, 36, 36, 36);
+  // 별 모양
   g.fillStyle(0xffffff, 1);
-  g.fillRect(30, 28, 2, 6); g.fillRect(28, 30, 6, 2);
-  g.fillRect(40, 38, 1, 3); g.fillRect(39, 39, 3, 1);
-  g.fillRect(22, 42, 1, 3); g.fillRect(21, 43, 3, 1);
+  g.fillRect(31, 25, 3, 3);
+  g.fillRect(30, 26, 5, 1);
+  g.fillRect(32, 23, 1, 7);
+  // 추가 별
+  g.fillRect(10, 28, 2, 2);
+  g.fillRect(54, 32, 2, 2);
+  drawSparkles(g, 0xb39ddb);
 }
 
 const ORE_DRAWERS = {
