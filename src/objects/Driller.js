@@ -46,10 +46,13 @@ export class Driller {
     this.isMining = false;
     this._wobble = 0;
     this._displayedRange = 1;
+    // 채굴 범위 전체에 크랙 표시 — 트래킹
+    this._crackedTiles = [];
+    this._lastCrackStage = 0;
     // 보스 아레나 모드 — 핀볼 같은 물리로 전환
     this.arenaMode = false;
     this.arenaBounds = null;
-    this.vy = 0;  // 아레나에서만 사용
+    this.vy = 0;
   }
 
   enterArena(bounds) {
@@ -229,18 +232,20 @@ export class Driller {
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;
 
-      // 타일 크랙 단계 갱신 (0 → 4)
+      // 크랙 단계 갱신 — 깨질 범위 (반원) 전체에 크랙 표시 (0 → 4)
       const crackStage = Math.min(4, Math.floor((this.mineProgress / GAME.minePerTileSeconds) * 5));
-      if ((blocker._crackStage ?? 0) !== crackStage) {
-        blocker._crackStage = crackStage;
-        this.tileMap.setCrackStage(blocker, crackStage);
+      if (crackStage !== this._lastCrackStage) {
+        this._lastCrackStage = crackStage;
+        this._applyCracksToSemicircle(nextTileY, currentTileX, crackStage);
       }
 
       if (this.mineProgress >= GAME.minePerTileSeconds) {
         this._mineSemicircle(nextTileY, currentTileX);
         this.mineProgress = 0;
+        // 모두 destroy 됐으니 트래킹 초기화
+        this._crackedTiles = [];
+        this._lastCrackStage = 0;
       } else {
-        // 스냅 — 본체 바닥이 타일 윗변에 자리잡도록.
         const snapY = nextTileY * this.tileSize;
         if (this.y > snapY) {
           this.y = this.y - (this.y - snapY) * 0.5;
@@ -249,16 +254,56 @@ export class Driller {
     } else {
       this.isMining = false;
       this.y += this.speed * this.engineMult * dt;
+      // 채굴 중이 아니면 남은 크랙 정리
+      if (this._crackedTiles && this._crackedTiles.length > 0) {
+        for (const t of this._crackedTiles) {
+          if (t && !t.destroyed) this.tileMap.setCrackStage(t, 0);
+        }
+        this._crackedTiles = [];
+        this._lastCrackStage = 0;
+      }
     }
 
     this.container.x = this.worldX;
     this.container.y = this.y;
   }
 
+  // 반원 채굴 반경 계산 (drillRange 1=1.8 ... 5=7.5 타일)
+  _miningRadius() {
+    return 1.8 + (Math.max(1, this.drillRange) - 1) * 1.5;
+  }
+
+  // 깨질 범위 전체에 크랙 오버레이 표시. drill이 움직이면 이전 크랙 지우고 새 위치에 다시.
+  _applyCracksToSemicircle(tileY, centerTileX, stage) {
+    // 이전에 크랙 칠한 타일들 정리 (지금 범위 밖일 수 있음)
+    if (this._crackedTiles) {
+      for (const t of this._crackedTiles) {
+        if (t && !t.destroyed) this.tileMap.setCrackStage(t, 0);
+      }
+    }
+    this._crackedTiles = [];
+    if (stage <= 0) return;
+
+    const r = this._miningRadius();
+    const r2 = r * r;
+    const ir = Math.ceil(r);
+    for (let dy = 0; dy <= ir; dy++) {
+      for (let dx = -ir; dx <= ir; dx++) {
+        if (dx * dx + dy * dy > r2) continue;
+        const tx = centerTileX + dx;
+        const ty = tileY + dy;
+        const tile = this.tileMap.getTileAt(tx, ty);
+        if (!tile || tile.destroyed || tile.isWall) continue;
+        this.tileMap.setCrackStage(tile, stage);
+        this._crackedTiles.push(tile);
+      }
+    }
+  }
+
   // 반원 범위 채굴 — drillRange가 커질수록 반지름이 늘어남.
   // (기본 1=1.8, 2=3.0, 3=4.5, 4=6.0, 5=7.5, 6=9.0 타일 반경)
   _mineSemicircle(tileY, centerTileX) {
-    const r = 1.8 + (Math.max(1, this.drillRange) - 1) * 1.5;
+    const r = this._miningRadius();
     const r2 = r * r;
     const ir = Math.ceil(r);
     let totalGold = 0;
