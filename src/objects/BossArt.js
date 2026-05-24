@@ -775,9 +775,24 @@ const BOSS_ART = {
 };
 
 export function ensureBossTexture(scene, bossId) {
+  const key = `boss-${bossId}`;
+  // 1) BootScene이 PNG를 미리 로드했으면 그걸 사용 (사용자 디자인 우선)
+  if (scene.textures.exists(key)) {
+    // procedural placeholder가 아닌 실제 이미지인지 체크 (placeholder는 무시)
+    const tex = scene.textures.get(key);
+    const src = tex.getSourceImage?.();
+    if (src && src.width > 4 && !tex._procedural) return key;
+  }
+  // 2) 없으면 procedural 폴백
   const art = BOSS_ART[bossId];
   if (!art) return null;
-  return ensureTexture(scene, `boss-${bossId}`, art.w, art.h, art.drawer);
+  if (scene.textures.exists(key)) return key;
+  const g = scene.add.graphics().setVisible(false);
+  art.drawer(g, art.w, art.h);
+  g.generateTexture(key, art.w, art.h);
+  g.destroy();
+  scene.textures.get(key)._procedural = true;
+  return key;
 }
 
 export function getBossArtSize(bossId) {

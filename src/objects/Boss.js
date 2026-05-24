@@ -26,15 +26,31 @@ export class Boss {
     this._lastTintAt = 0;
 
     const tex = ensureBossTexture(scene, def.id);
-    const size = getBossArtSize(def.id);
+    // PNG가 로드되어 있으면 그 텍스처 사이즈 사용. 없으면 procedural 폴백 사이즈.
+    let size = getBossArtSize(def.id);
+    if (scene.textures.exists(tex)) {
+      const src = scene.textures.get(tex).getSourceImage();
+      if (src) size = { w: src.width, h: src.height };
+    }
     this.size = size;
 
-    this.container = scene.add.container(x, y);
+    // 아레나 바닥에 발이 닿도록 — 발(이미지 하단) 기준 위치 = boss.y
+    this.arenaBounds = opts.arenaBounds ?? null;
+    if (this.arenaBounds?.groundY) {
+      this.y = this.arenaBounds.groundY - 6;  // 바닥 살짝 위 (벽과 안 겹치게)
+    }
+
+    this.container = scene.add.container(x, this.y);
     this.container.setDepth(45);
 
     this.sprite = scene.add.image(0, 0, tex);
-    this.sprite.setOrigin(0.5, 0.5);  // 중심 기준
+    this.sprite.setOrigin(0.5, 1.0);   // 보스의 발/베이스 = sprite 하단 = container 원점
     this.container.add(this.sprite);
+
+    // 좌우 이동 (아레나 안에서)
+    this.vx = 110 * (Math.random() < 0.5 ? -1 : 1);
+    // PNG 방향 — 진행 방향 따라 좌우 flip
+    this._lastDir = this.vx > 0 ? 1 : -1;
 
     // 등장 연출
     this.sprite.setScale(0.1);
@@ -87,25 +103,44 @@ export class Boss {
     return this.hp / this.maxHp;
   }
 
-  // 매 프레임 호출. 보스는 아레나 안에 고정. 드릴이 와서 부딫칠 때 데미지.
+  // 매 프레임 호출. 보스가 좌우로 이동 + 드릴 접촉 시 데미지.
   update(delta, driller) {
     if (!this.alive) return;
     const dt = delta / 1000;
 
-    // 드릴과 거리 — 접촉 판정
+    // 좌우 이동 (아레나 바닥 위)
+    if (this.arenaBounds) {
+      this.x += this.vx * dt;
+      const halfW = this.size.w * 0.45;
+      if (this.x < this.arenaBounds.left + halfW) {
+        this.x = this.arenaBounds.left + halfW;
+        this.vx = Math.abs(this.vx);
+      } else if (this.x > this.arenaBounds.right - halfW) {
+        this.x = this.arenaBounds.right - halfW;
+        this.vx = -Math.abs(this.vx);
+      }
+      // 진행 방향에 따라 sprite 좌우 flip (보스가 진행 방향 바라보게)
+      const dir = this.vx > 0 ? 1 : -1;
+      if (dir !== this._lastDir) {
+        this._lastDir = dir;
+        this.sprite.setFlipX(dir < 0);
+      }
+      this.container.x = this.x;
+    }
+
+    // 드릴 접촉 판정
     const dx = driller.worldX - this.x;
-    const dy = driller.y - this.y;
+    const drillHeadY = driller.y;
+    const bossHeadY = this.y - this.size.h * 0.5;  // 보스 가운데 (발이 y, 머리가 y - h/2)
+    const dy = drillHeadY - bossHeadY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const hitRadius = Math.max(this.size.w, this.size.h) * 0.42;
 
     if (dist < hitRadius) {
-      // 드릴이 보스 충돌 → 지속 데미지 (DPS = drillSpeedMult * 90)
-      // 충돌 시 드릴을 살짝 튕겨내기 (핀볼 효과)
       const dps = 90 * (driller.drillSpeedMult ?? 1);
       this._applyContinuousDamage(dps * dt);
-      // 드릴이 보스 가운데에서 멀어지도록 미는 효과
       if (driller.arenaMode && dist > 1) {
-        const pushStrength = 30;
+        const pushStrength = 40;
         driller.vx += (dx / dist) * pushStrength;
         driller.vy += (dy / dist) * pushStrength;
       }

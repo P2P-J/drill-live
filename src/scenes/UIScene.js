@@ -160,34 +160,32 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildBuffArea() {
-    // 버프(긍정) 우측, 디버프(부정) 좌측 위.
-    this.buffArea   = { x: GAME.width - 220, y: 240, w: 200 };
-    this.debuffArea = { x: 116,              y: 240, w: 220 };
+    // 버프(긍정) 우측 상단, 디버프(부정) 좌측 상단 (광물 인벤토리 아래)
+    this.buffArea   = { x: GAME.width - 290, y: 240, w: 270 };
+    this.debuffArea = { x: 116,              y: 240, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
     const area = isDebuff ? this.debuffArea : this.buffArea;
-    // 같은 영역 안에서 슬롯 카운트
     const sameAreaCount = [...this.buffIndicators.values()]
       .filter((b) => b.isDebuff === isDebuff).length;
     const x = area.x;
-    const y = area.y + sameAreaCount * 60;
+    const y = area.y + sameAreaCount * 72;
 
     const container = this.add.container(x, y);
-    const bg = this.add.rectangle(0, 0, area.w, 52, 0x000000, 0.85).setOrigin(0, 0)
+    const bg = this.add.rectangle(0, 0, area.w, 62, 0x000000, 0.88).setOrigin(0, 0)
       .setStrokeStyle(3, color);
-    // 디버프는 빨간 ⚠ 아이콘 + 좌측 정렬
-    const labelText = this.add.text(10, 4, (isDebuff ? '⚠ ' : '') + label, {
+    const labelText = this.add.text(12, 8, (isDebuff ? '⚠ ' : '') + label, {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '20px',
+      fontSize: '22px',
       color: isDebuff ? '#FF5252' : '#ffffff',
     });
-    const timeText = this.add.text(area.w - 10, 4, '0.0s', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '20px',
-      color: isDebuff ? '#FF5252' : '#FFD700',
+    const timeText = this.add.text(area.w - 12, 8, '0.0s', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '22px',
+      color: isDebuff ? '#FFCDD2' : '#FFD700',
     }).setOrigin(1, 0);
-    const bar = this.add.rectangle(0, 48, area.w, 4, color).setOrigin(0, 0);
+    const bar = this.add.rectangle(0, 56, area.w, 6, color).setOrigin(0, 0);
 
     container.add([bg, labelText, timeText, bar]);
     this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });

@@ -77,6 +77,7 @@ export class BossTracker {
     const boss = new Boss(this.scene, def, bossX, bossY, {
       tileMap: this.tileMap,
       driller: this.driller,
+      arenaBounds: arena,
       onDefeated: (b) => this._onBossDefeated(b),
       onFailed: (b) => this._onBossFailed(b),
       onDamage: (amount, b) => this._emit('damage', { boss: b, amount }),

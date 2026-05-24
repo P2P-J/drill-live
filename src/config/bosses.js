@@ -11,7 +11,7 @@ export const BOSSES = [
     timeLimitMs: 60000,   // 60초
     rewardOre: 'gold',
     rewardCount: 30,
-    failPenalty: { speedMult: 0.5, durationMs: 30000 },
+    failPenalty: { speedMult: 0.5, durationMs: 60000 },
   },
   {
     id: 'crystalGolem',
@@ -22,7 +22,7 @@ export const BOSSES = [
     timeLimitMs: 75000,
     rewardOre: 'amethyst',
     rewardCount: 25,
-    failPenalty: { speedMult: 0.5, durationMs: 30000 },
+    failPenalty: { speedMult: 0.5, durationMs: 60000 },
   },
   {
     id: 'abyssKraken',
@@ -33,7 +33,7 @@ export const BOSSES = [
     timeLimitMs: 90000,
     rewardOre: 'sapphire',
     rewardCount: 25,
-    failPenalty: { speedMult: 0.5, durationMs: 30000 },
+    failPenalty: { speedMult: 0.5, durationMs: 60000 },
   },
   {
     id: 'ancientTreant',
@@ -44,7 +44,7 @@ export const BOSSES = [
     timeLimitMs: 90000,
     rewardOre: 'emerald',
     rewardCount: 22,
-    failPenalty: { speedMult: 0.5, durationMs: 30000 },
+    failPenalty: { speedMult: 0.5, durationMs: 60000 },
   },
   {
     id: 'magmaDragon',
