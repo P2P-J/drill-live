@@ -1,13 +1,24 @@
 import Phaser from 'phaser';
 import { GAME } from '../config/game.js';
 import { ORES, ORE_IDS } from '../config/ores.js';
-import { TRIGGERS } from '../config/triggers.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
 
-const INVENTORY_X = 12;
+const INVENTORY_X = 6;
 const INVENTORY_W = 96;
 const INVENTORY_TOP = 110;
+
+const BOTTOM_BAR_H = 100;
+const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
+
+// Phase 2에서 BossTracker로 대체. 우선 거리 산정용 데이터.
+const BOSS_DEPTHS = [
+  { id: 'mega_mole',    name: 'Mega Mole',     km: 9000 },
+  { id: 'crystal_golem',name: 'Crystal Golem', km: 45000 },
+  { id: 'abyss_kraken', name: 'Abyss Kraken',  km: 90000 },
+  { id: 'ancient_treant',name:'Ancient Treant',km: 450000 },
+  { id: 'magma_dragon', name: 'Magma Dragon',  km: 950000 },
+];
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -17,145 +28,130 @@ export class UIScene extends Phaser.Scene {
   init(data) {
     this.upgradeSystem = data.upgradeSystem;
     this.biomeManager = data.biomeManager;
+    this.eventLines = [];
   }
 
   create() {
     this._buildTopHud();
     this._buildInventory();
-    this._buildTriggerPanel();
+    this._buildBottomBar();
     this._wireEvents();
   }
 
-  // ── 상단 HUD (Depth + Biome + 자동 업그레이드 상태) ──
+  // ── 상단: Depth + Biome 중앙, Gold 우측 작게 ──
   _buildTopHud() {
-    this.add.rectangle(0, 0, GAME.width, 100, 0x000000, 0.6).setOrigin(0, 0);
+    this.add.rectangle(0, 0, GAME.width, 90, 0x000000, 0.55).setOrigin(0, 0);
 
-    this.depthText = this.add.text(GAME.width / 2, 14, 'Depth: 0.0 km', {
+    this.depthText = this.add.text(GAME.width / 2, 8, 'Depth: 0.0 km', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '46px',
+      fontSize: '44px',
       color: '#ffffff',
     }).setOrigin(0.5, 0);
 
-    this.biomeText = this.add.text(GAME.width / 2, 64, 'Earth - Layer 1-1', {
+    this.biomeText = this.add.text(GAME.width / 2, 58, 'Earth - Layer 1-1', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '24px',
       color: '#cccccc',
     }).setOrigin(0.5, 0);
+
+    // Gold (작게, 우측 상단)
+    this.goldText = this.add.text(GAME.width - 18, 24, '0 G', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '26px',
+      color: '#FFD700',
+    }).setOrigin(1, 0);
   }
 
-  // ── 좌측 광물 인벤토리 ──
+  // ── 좌측 광물 인벤토리 (12종) ──
   _buildInventory() {
     const x = INVENTORY_X;
     const y = INVENTORY_TOP;
     const w = INVENTORY_W;
-    const itemH = 102;
-    const totalH = ORE_IDS.length * itemH + 20;
+    // 사용 가능 높이 안에 12개를 균등 배치
+    const available = BOTTOM_BAR_Y - INVENTORY_TOP - 20;
+    const itemH = Math.floor(available / ORE_IDS.length);
+    const iconSize = Math.min(58, itemH - 22);
+    const totalH = ORE_IDS.length * itemH + 16;
 
     this.add.rectangle(x, y, w, totalH, 0x000000, 0.55).setOrigin(0, 0)
-      .setStrokeStyle(2, 0xFFD700, 0.5);
+      .setStrokeStyle(2, 0xFFD700, 0.4);
 
     this.inventoryItems = {};
     ORE_IDS.forEach((id, i) => {
-      const cy_ = y + 10 + i * itemH;
-      this.add.rectangle(x + w / 2, cy_ + 30, 60, 60, 0x1a1a1a, 0.7)
-        .setStrokeStyle(1, 0x444444, 0.8);
+      const cy_ = y + 8 + i * itemH + itemH / 2;
+
+      // 어두운 박스 배경
+      this.add.rectangle(x + w / 2, cy_ - 8, iconSize + 4, iconSize + 4, 0x1a1a1a, 0.7)
+        .setStrokeStyle(1, 0x444444, 0.6);
 
       const gemKey = ensureGemTexture(this, id);
-      const icon = this.add.image(x + w / 2, cy_ + 30, gemKey);
-      icon.setScale(56 / GAME.tileSize);
-      icon.setAlpha(0.35);
+      const icon = this.add.image(x + w / 2, cy_ - 8, gemKey);
+      icon.setScale(iconSize / GAME.tileSize);
+      icon.setAlpha(0.3);
 
-      const count = this.add.text(x + w / 2, cy_ + 68, '0', {
+      const count = this.add.text(x + w / 2, cy_ + iconSize / 2 - 4, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '22px',
+        fontSize: '18px',
         color: '#FFD700',
       }).setOrigin(0.5, 0);
 
-      this.inventoryItems[id] = { icon, count };
+      this.inventoryItems[id] = { icon, count, baseScale: iconSize / GAME.tileSize };
     });
   }
 
-  // ── 하단: 후원 트리거 안내 패널 (ZRQYT COMANDOS 스타일) ──
-  _buildTriggerPanel() {
-    const panelY = GAME.hudY;
-    const panelH = GAME.hudHeight;
+  // ── 하단 바: 이벤트 피드 (좌) + Next Boss (우) ──
+  _buildBottomBar() {
+    this.add.rectangle(0, BOTTOM_BAR_Y, GAME.width, BOTTOM_BAR_H, 0x000000, 0.6).setOrigin(0, 0);
+    this.add.rectangle(0, BOTTOM_BAR_Y, GAME.width, 3, 0xFFD700).setOrigin(0, 0);
 
-    this.add.rectangle(0, panelY, GAME.width, panelH, 0x111118, 0.98).setOrigin(0, 0);
-    this.add.rectangle(0, panelY, GAME.width, 6, 0xFFD700).setOrigin(0, 0);
-
-    // 헤더
-    this.add.text(24, panelY + 12, 'TRIGGERS', {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '34px',
-      color: '#FFD700',
-    }).setOrigin(0, 0);
-
-    this.add.text(GAME.width - 24, panelY + 18, '$1 = BOMB 💥', {
+    // 좌측: 최근 이벤트 텍스트 (최대 2줄)
+    this.eventText1 = this.add.text(20, BOTTOM_BAR_Y + 14, '', {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: '24px',
-      color: '#FFEB3B',
-    }).setOrigin(1, 0);
-
-    // 3열 × 5행 = 15칸 그리드
-    const cols = 3;
-    const rows = 5;
-    const gridTop = panelY + 70;
-    const gridLeft = 16;
-    const gridRight = 16;
-    const gap = 8;
-    const cellW = Math.floor((GAME.width - gridLeft - gridRight - gap * (cols - 1)) / cols);
-    const cellH = Math.floor((panelH - 80 - gap * (rows - 1)) / rows);
-
-    TRIGGERS.forEach((trig, i) => {
-      if (i >= cols * rows) return;
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = gridLeft + col * (cellW + gap);
-      const y = gridTop + row * (cellH + gap);
-      this._createTriggerCell(trig, x, y, cellW, cellH);
+      color: '#ffffff',
     });
+    this.eventText2 = this.add.text(20, BOTTOM_BAR_Y + 50, '', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '20px',
+      color: '#bbbbbb',
+    });
+
+    // 우측: 다음 보스 정보
+    this.nextBossText = this.add.text(GAME.width - 20, BOTTOM_BAR_Y + 14, '', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '24px',
+      color: '#FF5252',
+    }).setOrigin(1, 0);
+    this.bossDistanceText = this.add.text(GAME.width - 20, BOTTOM_BAR_Y + 50, '', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '20px',
+      color: '#FFAB91',
+    }).setOrigin(1, 0);
   }
 
-  _createTriggerCell(trig, x, y, w, h) {
-    // 배경
-    const bg = this.add.rectangle(x, y, w, h, 0x1f1f28, 1).setOrigin(0, 0)
-      .setStrokeStyle(2, 0x333344);
+  // ── 이벤트 피드 ──
+  _pushEvent(title, sub = '') {
+    this.eventLines.push({ title, sub });
+    if (this.eventLines.length > 2) this.eventLines.shift();
+    this._refreshEventText();
+  }
 
-    // 좌측 컬러 박스 (아이콘 자리)
-    const boxSize = Math.min(h - 12, 56);
-    this.add.rectangle(x + 8, y + (h - boxSize) / 2, boxSize, boxSize, trig.color, 1)
-      .setOrigin(0, 0)
-      .setStrokeStyle(2, 0x000000);
-    // 박스 안에 첫 글자
-    this.add.text(x + 8 + boxSize / 2, y + h / 2, trig.label.charAt(0), {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '28px',
-      color: '#000000',
-    }).setOrigin(0.5, 0.5);
+  _refreshEventText() {
+    const [first, second] = this.eventLines;
+    this.eventText1.setText(first?.title ?? '');
+    this.eventText2.setText(first?.sub ?? second?.title ?? '');
+  }
 
-    // 라벨
-    this.add.text(x + boxSize + 16, y + 8, trig.label, {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '20px',
-      color: '#ffffff',
-    }).setOrigin(0, 0);
-
-    // 가격 (타입에 따라 색상 다름)
-    const priceColor = trig.type === 'donate' ? '#FFD700'
-                     : trig.type === 'chat'   ? '#90CAF9'
-                     :                          '#F8BBD0';
-    this.add.text(x + w - 8, y + 8, trig.price, {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '20px',
-      color: priceColor,
-    }).setOrigin(1, 0);
-
-    // 효과 설명
-    this.add.text(x + boxSize + 16, y + h - 26, trig.effect, {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '16px',
-      color: '#bbbbbb',
-    }).setOrigin(0, 0);
+  _updateNextBoss(km) {
+    const next = BOSS_DEPTHS.find(b => b.km > km);
+    if (!next) {
+      this.nextBossText.setText('All bosses cleared');
+      this.bossDistanceText.setText('');
+      return;
+    }
+    const dist = next.km - km;
+    this.nextBossText.setText(`Next: ${next.name}`);
+    this.bossDistanceText.setText(`${dist.toFixed(0)} km away`);
   }
 
   _wireEvents() {
@@ -164,6 +160,15 @@ export class UIScene extends Phaser.Scene {
       const layer = this.biomeManager.getLayerAt(Math.max(0, km));
       const short = layer.name.split(' ')[0];
       this.biomeText.setText(`${layer.biomeName} - Layer ${short}`);
+      this._updateNextBoss(km);
+    });
+
+    gameState.on('gold', (g) => {
+      this.goldText.setText(`${g.toLocaleString()} G`);
+    });
+
+    gameState.on('upgrade', ({ name, level }) => {
+      this._pushEvent(`Upgrade: ${name} Lv ${level}`, '');
     });
 
     gameState.on('ore', ({ oreId, total }) => {
@@ -173,10 +178,15 @@ export class UIScene extends Phaser.Scene {
       item.icon.setAlpha(1.0);
       this.tweens.add({
         targets: item.icon,
-        scale: { from: (56 / GAME.tileSize) * 1.3, to: (56 / GAME.tileSize) },
+        scale: { from: item.baseScale * 1.3, to: item.baseScale },
         duration: 240,
         ease: 'Back.easeOut',
       });
+      // 희귀 광물은 이벤트 피드에도 띄움
+      const ore = ORES[oreId];
+      if (ore.value >= 400) {
+        this._pushEvent(`+${ore.name}!`, `+${ore.value} G`);
+      }
     });
   }
 }

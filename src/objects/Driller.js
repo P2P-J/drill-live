@@ -93,7 +93,7 @@ export class Driller {
       this.drillBit.rotation += dt * 20;
 
       if (this.mineProgress >= GAME.minePerTileSeconds) {
-        this._mineRow(nextTileY, currentTileX);
+        this._mineSemicircle(nextTileY, currentTileX);
         this.mineProgress = 0;
       } else {
         const snapY = nextTileY * this.tileSize - halfH;
@@ -109,23 +109,32 @@ export class Driller {
     this.container.y = this.y;
   }
 
-  _mineRow(tileY, centerTileX) {
-    const halfRange = Math.floor(this.drillRange / 2);
+  // 드릴 하단을 중심으로 반원(반쪽 원)을 파괴.
+  // drillRange 단계별 반지름: 1단계 1.8 / 2단계 3.0 / 3단계 4.5 타일
+  _mineSemicircle(tileY, centerTileX) {
+    const radiusMap = [1.8, 3.0, 4.5];
+    const r = radiusMap[Math.min(this.drillRange, radiusMap.length) - 1] ?? 1.8;
+    const r2 = r * r;
+    const ir = Math.ceil(r);
     let totalGold = 0;
 
-    for (let dx = -halfRange; dx <= halfRange; dx++) {
-      const tx = centerTileX + dx;
-      const tile = this.tileMap.getTileAt(tx, tileY);
-      if (!tile || tile.destroyed || tile.isWall) continue;
+    for (let dy = 0; dy <= ir; dy++) {
+      for (let dx = -ir; dx <= ir; dx++) {
+        if (dx * dx + dy * dy > r2) continue;  // 원 밖
+        const tx = centerTileX + dx;
+        const ty = tileY + dy;
+        const tile = this.tileMap.getTileAt(tx, ty);
+        if (!tile || tile.destroyed || tile.isWall) continue;
 
-      const px = tile.worldX + this.tileSize / 2;
-      const py = tile.worldY + this.tileSize / 2;
-      const ore = this.tileMap.destroyTile(tx, tileY);
-      this._spawnParticles(px, py, ore ? ore.color : 0x8B5A2B);
+        const px = tile.worldX + this.tileSize / 2;
+        const py = tile.worldY + this.tileSize / 2;
+        const ore = this.tileMap.destroyTile(tx, ty);
+        this._spawnParticles(px, py, ore ? ore.color : 0x8B5A2B);
 
-      if (ore) {
-        totalGold += ore.value;
-        gameState.addOre(ore.id);
+        if (ore) {
+          totalGold += ore.value;
+          gameState.addOre(ore.id);
+        }
       }
     }
 

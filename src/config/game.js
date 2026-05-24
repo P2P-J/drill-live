@@ -3,9 +3,9 @@ export const GAME = {
   height: 1920,
   tileSize: 64,
   pxPerKm: 64,
-  gameAreaHeight: 1400,
-  hudY: 1400,
-  hudHeight: 520,
+  gameAreaHeight: 1820,  // 위 0~90 HUD, 아래 1820~1920 이벤트 바, 그 사이는 게임
+  hudY: 1820,
+  hudHeight: 100,
   // 가로 13타일 = 벽1 + 채굴11 + 벽1
   chunkTilesX: 13,
   chunkTilesY: 32,

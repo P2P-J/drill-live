@@ -17,6 +17,7 @@
     "youtube-chat": "^2.2.0"
   },
   "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "vite": "^8.0.14",
     "vitest": "^4.1.7"
   }
