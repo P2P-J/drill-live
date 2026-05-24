@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
 import { GameScene } from './scenes/GameScene.js';
+import { UIScene } from './scenes/UIScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -13,7 +14,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   pixelArt: false,
-  scene: [BootScene, GameScene],
+  scene: [BootScene, GameScene, UIScene],
 };
 
 new Phaser.Game(config);

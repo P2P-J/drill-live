@@ -20,6 +20,9 @@ export class GameScene extends Phaser.Scene {
     this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
     this.upgradeSystem = new UpgradeSystem(gameState);
 
+    // 게임 카메라는 위쪽 1400px만 사용. 하단은 UIScene이 차지.
+    this.cameras.main.setViewport(0, 0, GAME.width, GAME.gameAreaHeight);
+
     // 배경 (타일 너머)
     this.bg = this.add.rectangle(0, 0, GAME.width, GAME.height * 100, 0x111111)
       .setOrigin(0, 0)
@@ -29,23 +32,19 @@ export class GameScene extends Phaser.Scene {
     // 초기 청크 로드
     this.tileMap.update(0);
 
-    // 드릴러 생성 (지면 약간 위에서 시작)
+    // 드릴러 생성
     this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem);
 
-    // 카메라가 드릴러를 따라가게 (y만)
+    // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
     this.cameras.main.startFollow(this.driller.container, true, 0, 0.1);
-    // 화면 위쪽 1/3 지점에 driller가 머물도록 offset
-    this.cameras.main.setFollowOffset(0, -GAME.height * 0.2);
+    this.cameras.main.setFollowOffset(0, 250);  // driller가 화면 상단 1/3에 머물게
 
-    // 디버그 텍스트 (카메라 고정)
-    this.debugText = this.add.text(20, 20, '', {
-      fontFamily: 'monospace',
-      fontSize: '24px',
-      color: '#ffffff',
-      backgroundColor: '#00000088',
-      padding: { x: 8, y: 4 },
-    }).setScrollFactor(0).setDepth(100);
+    // UIScene 런치 (병행 실행)
+    this.scene.launch('UIScene', {
+      upgradeSystem: this.upgradeSystem,
+      biomeManager: this.biomeManager,
+    });
 
     gameState.setDepth(0);
   }
@@ -56,14 +55,5 @@ export class GameScene extends Phaser.Scene {
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
-
-    const layer = this.biomeManager.getLayerAt(Math.max(0, km));
-    this.debugText.setText(
-      `Depth: ${km.toFixed(1)} km\n` +
-      `Biome: ${layer.biomeEmoji} ${layer.biomeName}\n` +
-      `Gold: ${gameState.gold}\n` +
-      `Mining: ${this.driller.isMining ? 'YES' : 'no'}\n` +
-      `Range: ${this.driller.drillRange}`
-    );
   }
 }
