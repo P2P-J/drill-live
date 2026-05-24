@@ -98,6 +98,21 @@ export class Driller {
     this.drillSpeedMult = drillSpeedMult;
     this.engineMult = engineMult;
 
+    // 드릴 파워 단계별 색 변화 (명세서: 목재→돌→철→금→다이아)
+    // PNG 본체 색이 살아있도록 옅은 틴트만 — 비트(실버)에 더 또렷이 반영됨.
+    const drillPowerLv = this.upgradeSystem.state.upgrades.drillPower ?? 1;
+    if (drillPowerLv !== this._lastDrillPowerLv) {
+      this._lastDrillPowerLv = drillPowerLv;
+      const tints = [
+        0xFFFFFF,  // Lv 1 (default — no change)
+        0xE0E0E0,  // Lv 2 stone (light gray)
+        0xDCECF7,  // Lv 3 iron (subtle silver-blue)
+        0xFFF1B0,  // Lv 4 gold (subtle warm)
+        0xC0FFFC,  // Lv 5 diamond (subtle cyan)
+      ];
+      this.sprite.setTint(tints[Math.min(4, drillPowerLv - 1)]);
+    }
+
     // 업그레이드 단계 + drillRangeUp 버프 = 효과 range
     const baseRange = this.upgradeSystem.getDrillRange();
     let bonus = 0;

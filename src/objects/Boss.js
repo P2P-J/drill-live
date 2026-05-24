@@ -25,7 +25,13 @@ export class Boss {
     this.alive = true;
     this._lastTintAt = 0;
 
-    const tex = ensureBossTexture(scene, def.id);
+    // 방향별 PNG가 둘 다 로드되어 있으면 방향별 텍스처 사용. 아니면 단일 텍스처 + flipX.
+    const leftKey = `boss-${def.id}-left`;
+    const rightKey = `boss-${def.id}-right`;
+    const hasDirectional = this._hasRealImage(scene, leftKey) && this._hasRealImage(scene, rightKey);
+    this._dirTextures = hasDirectional ? { left: leftKey, right: rightKey } : null;
+
+    const tex = hasDirectional ? rightKey : ensureBossTexture(scene, def.id);
     // PNG가 로드되어 있으면 그 텍스처 사이즈 사용. 없으면 procedural 폴백 사이즈.
     let size = getBossArtSize(def.id);
     if (scene.textures.exists(tex)) {
@@ -119,11 +125,15 @@ export class Boss {
         this.x = this.arenaBounds.right - halfW;
         this.vx = -Math.abs(this.vx);
       }
-      // 진행 방향에 따라 sprite 좌우 flip (보스가 진행 방향 바라보게)
+      // 진행 방향에 따라 텍스처 교체 (방향별 PNG가 있으면) 또는 flipX
       const dir = this.vx > 0 ? 1 : -1;
       if (dir !== this._lastDir) {
         this._lastDir = dir;
-        this.sprite.setFlipX(dir < 0);
+        if (this._dirTextures) {
+          this.sprite.setTexture(dir > 0 ? this._dirTextures.right : this._dirTextures.left);
+        } else {
+          this.sprite.setFlipX(dir < 0);
+        }
       }
       this.container.x = this.x;
     }
@@ -145,6 +155,14 @@ export class Boss {
         driller.vy += (dy / dist) * pushStrength;
       }
     }
+  }
+
+  // 실제 이미지(로딩 성공)인지 체크. width<=4은 BootScene이 만든 placeholder.
+  _hasRealImage(scene, key) {
+    if (!scene.textures.exists(key)) return false;
+    const tex = scene.textures.get(key);
+    const src = tex.getSourceImage?.();
+    return !!(src && src.width > 4 && !tex._procedural);
   }
 
   _applyContinuousDamage(amount) {

@@ -51,8 +51,9 @@ export class ExplosionEffect {
     this.tileMap = tileMap;
   }
 
-  // 후원 폭탄 트리거 - TNT가 위에서 떨어져서 땅에 닿고, 1초간 치지직 후 폭발
-  // opts: { radius, color, label, tntScale, shake, dropFromTilesAbove }
+  // 후원 폭탄 트리거 - TNT가 위에서 떨어져서 땅에 닿고, sizzle 후 폭발.
+  // opts: { radius, color, label, tntScale, shake, dropFromTilesAbove, sizzleDurationMs, names }
+  // 반환: handle (LIKE TNT 같이 sizzle 중에 이름 더 추가하려고 할 때 사용)
   drop(targetX, drillY, opts = {}) {
     const radius = opts.radius ?? 1.5;
     const color = opts.color ?? 0xD32F2F;
@@ -60,15 +61,16 @@ export class ExplosionEffect {
     const tntScale = opts.tntScale ?? 1.0;
     const shake = opts.shake ?? 0.012;
     const dropTiles = opts.dropFromTilesAbove ?? 14;
+    const sizzleDurationMs = opts.sizzleDurationMs ?? 1000;
+    const names = opts.names ? [...opts.names] : [];
 
     const tntKey = ensureTntTexture(this.scene, `tnt-${color.toString(16)}`, color);
 
-    // 드릴 크기와 무관하게 첫 번째 살아있는 타일(=땅)을 찾아 그 위에 폭탄을 안착시킴
     const ground = this._findGround(targetX, drillY);
-    const tntLandY = ground.tileY * T - T / 2;     // TNT 중심이 타일 위에 얹힘
-    const explosionY = ground.tileY * T + T / 2;   // 폭발 중심은 그 타일 중앙
+    const tntLandY = ground.tileY * T - T / 2;
+    const explosionY = ground.tileY * T + T / 2;
 
-    const startY = drillY - dropTiles * T;  // 화면 위쪽에서 시작
+    const startY = drillY - dropTiles * T;
     const tnt = this.scene.add.image(targetX, startY, tntKey);
     tnt.setScale(tntScale);
     tnt.setDepth(80);
@@ -79,26 +81,47 @@ export class ExplosionEffect {
       color: '#000000',
     }).setOrigin(0.5, -1.0).setDepth(81);
 
-    // 낙하 (가속도)
+    // 좋아요/후원자 이름 표시 (TNT 위쪽에 떠 있음)
+    const namesText = this.scene.add.text(targetX, startY - 40, '', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '18px',
+      color: '#FFEB3B',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center',
+    }).setOrigin(0.5, 1.0).setDepth(82);
+
+    // 핸들 — 외부에서 sizzle 중 이름 추가 가능
+    const handle = {
+      isLanded: false,
+      isExploded: false,
+      names,
+      addName(name) {
+        if (this.isExploded) return false;
+        this.names.push(name);
+        // 마지막 5개만 표시 (너무 많으면 화면 가림)
+        namesText.setText(this.names.slice(-5).join('\n'));
+        return true;
+      },
+    };
+    // 초기 이름 렌더
+    if (names.length > 0) namesText.setText(names.slice(-5).join('\n'));
+
     const fallDuration = 600;
-    this.scene.tweens.add({
-      targets: tnt,
-      y: tntLandY,
-      duration: fallDuration,
-      ease: 'Quad.easeIn',
-    });
+    this.scene.tweens.add({ targets: tnt, y: tntLandY, duration: fallDuration, ease: 'Quad.easeIn' });
+    this.scene.tweens.add({ targets: namesText, y: tntLandY - 50, duration: fallDuration, ease: 'Quad.easeIn' });
     this.scene.tweens.add({
       targets: labelText,
       y: tntLandY,
       duration: fallDuration,
       ease: 'Quad.easeIn',
       onComplete: () => {
-        // 착지 → 1초 치지직 → 폭발
-        // TODO(sound): scene.sound.play('bomb_sizzle')
-        this._sizzle(tnt, labelText, () => {
+        handle.isLanded = true;
+        this._sizzle(tnt, labelText, sizzleDurationMs, () => {
+          handle.isExploded = true;
           tnt.destroy();
           labelText.destroy();
-          // TODO(sound): scene.sound.play(`bomb_${label.toLowerCase()}`)
+          namesText.destroy();
           this._explode(targetX, explosionY, { radius, color, shake });
         });
       },
@@ -112,6 +135,8 @@ export class ExplosionEffect {
       yoyo: true,
       repeat: Math.floor(fallDuration / 240),
     });
+
+    return handle;
   }
 
   // 첫 번째 살아있는 타일(=땅) 찾기. drillBottomY = 드릴 sprite의 시각적 바닥.
@@ -130,9 +155,8 @@ export class ExplosionEffect {
     return { tileX, tileY: Math.floor(drillBottomY / T) + 3 };
   }
 
-  // 치지직 1초 — 도화선 타들어가는 느낌의 시각 효과 (사운드는 추후 연결)
-  _sizzle(tnt, labelText, onDone) {
-    const sizzleMs = 1000;
+  // 치지직 — 도화선 타들어가는 느낌. duration 파라미터로 길이 조정 가능 (LIKE=3초, BOMB=1초)
+  _sizzle(tnt, labelText, sizzleMs, onDone) {
     const startX = tnt.x;
     const startY = tnt.y;
 

@@ -22,6 +22,9 @@ export const TRIGGER_DEFS = {
   MEGA_BLAST: { type: 'bomb', radius: 3.6, color: 0xD32F2F, tntScale: 1.5,  priceLabel: '$5',  label: 'MEGA BLAST' },
   NUKE:       { type: 'bomb', radius: 6.0, color: 0xE91E63, tntScale: 2.0,  priceLabel: '$20', label: 'NUKE',     shake: 0.025 },
 
+  // 좋아요 — 가장 작은 TNT, 3초 sizzle, 좋아요 누른 사람 이름 표시 (sizzle 중 추가됨)
+  LIKE:       { type: 'like', radius: 1.2, color: 0xE91E63, tntScale: 0.75, priceLabel: '❤',  label: 'LIKE', sizzleDurationMs: 3000 },
+
   // 드릴 계열 — BuffSystem 활용
   DRILL_UP:   { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 30000, priceLabel: '$2',  label: 'DRILL UP',  color: 0xCDDC39 },
   TURBO:      { type: 'buff', buffId: 'drillPowerUp', params: { mult: 3.0 }, durationMs: 15000, priceLabel: '$5',  label: 'TURBO',     color: 0x4CAF50 },
@@ -36,8 +39,8 @@ export const TRIGGER_DEFS = {
   // 범위 확장 (이미 SPACE로 구현된 것)
   RANGE_UP:   { type: 'buff', buffId: 'drillRangeUp', params: { bonus: 2, label: 'RANGE UP!' }, durationMs: 10000, priceLabel: 'SC', label: 'RANGE UP', color: 0xFF9800 },
 
-  // 채팅
-  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
+  // 채팅 (전체 채널 쿨다운 30초)
+  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 30000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
 
   // 구독/멤버십
   SUB:        { type: 'oreSpawn', oreId: 'biome',   count: 6, radius: 2.0, priceLabel: 'SUB',    label: 'NEW SUB!',    color: 0xF06292 },
@@ -54,6 +57,7 @@ export class TriggerSystem {
     this.oreLayer = deps.oreLayer;
 
     this.explosionEffect = new ExplosionEffect(scene, this.tileMap);
+    this.cooldownManager = deps.cooldownManager;
     this._listeners = new Map();
   }
 
@@ -63,16 +67,43 @@ export class TriggerSystem {
       console.warn('Unknown trigger:', triggerId);
       return;
     }
+    // 쿨다운 검사 (채팅 트리거 전체 채널 쿨다운)
+    if (def.cooldownMs && this.cooldownManager) {
+      if (!this.cooldownManager.tryFire(triggerId, def.cooldownMs)) {
+        return;  // 쿨다운 중 → 무시
+      }
+    }
     donor = donor ?? randomDonor();
 
     const event = { triggerId, def, donor };
     this._emit('fire', event);
 
     switch (def.type) {
-      case 'bomb':       return this._handleBomb(def);
+      case 'bomb':       return this._handleBomb(def, donor);
       case 'buff':       return this._handleBuff(def);
       case 'oreSpawn':   return this._handleOreSpawn(def);
+      case 'like':       return this._handleLike(def, donor);
     }
+  }
+
+  // 좋아요 — 활성 LIKE TNT가 sizzle 중이면 이름만 추가. 없으면 새 TNT 떨어뜨림.
+  _handleLike(def, donor) {
+    if (this._activeLike && !this._activeLike.isExploded) {
+      this._activeLike.addName(donor);
+      return;
+    }
+    const drillScale = this.driller.sprite?.scaleY ?? 1.0;
+    const drillVisualBottomY = this.driller.y + 64 * drillScale;
+    const targetX = this.driller.worldX;
+    this._activeLike = this.explosionEffect.drop(targetX, drillVisualBottomY, {
+      radius: def.radius,
+      color: def.color,
+      label: def.label,
+      tntScale: def.tntScale,
+      shake: 0.01,
+      sizzleDurationMs: def.sizzleDurationMs,
+      names: [donor],
+    });
   }
 
   _handleBomb(def) {

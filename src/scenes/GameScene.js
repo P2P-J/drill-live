@@ -11,6 +11,7 @@ import { BuffSystem } from '../systems/BuffSystem.js';
 import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
 import { BossTracker } from '../systems/BossTracker.js';
 import { ArenaSystem } from '../systems/ArenaSystem.js';
+import { CooldownManager } from '../systems/CooldownManager.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -41,6 +42,9 @@ export class GameScene extends Phaser.Scene {
     // 드릴러 생성
     this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem, this.buffSystem);
 
+    // 채팅 트리거 전체 채널 쿨다운 관리
+    this.cooldownManager = new CooldownManager(this);
+
     // 트리거 시스템 (후원/채팅/구독 이벤트 핸들러)
     this.triggerSystem = new TriggerSystem(this, {
       driller: this.driller,
@@ -48,6 +52,7 @@ export class GameScene extends Phaser.Scene {
       biomeManager: this.biomeManager,
       buffSystem: this.buffSystem,
       oreLayer: this.oreLayer,
+      cooldownManager: this.cooldownManager,
     });
 
     // 보스 아레나 + 추적기
@@ -140,6 +145,7 @@ export class GameScene extends Phaser.Scene {
       'W':     'FAST',         // !fast
       'E':     'SUB',          // 신규 구독
       'M':     'MEMBER',       // 멤버 가입
+      'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)
     };
     for (const [key, triggerId] of Object.entries(KEY_TRIGGERS)) {
       this.input.keyboard.on(`keydown-${key}`, () => {
@@ -147,9 +153,9 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // 보스 키 일시 비활성화 (PNG 준비 후 재활성화)
-    // this.input.keyboard.on('keydown-B', () => this.bossTracker.forceSpawnNext());
-    // this.input.keyboard.on('keydown-N', () => this.bossTracker.activeBoss?.forceDefeat());
+    // 보스 디버그 키
+    this.input.keyboard.on('keydown-B', () => this.bossTracker.forceSpawnNext());
+    this.input.keyboard.on('keydown-N', () => this.bossTracker.activeBoss?.forceDefeat());
   }
 
   update(_time, delta) {
@@ -159,8 +165,7 @@ export class GameScene extends Phaser.Scene {
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
-    // 보스 일시 비활성화 (사용자 디자인 PNG 준비 전까지) — 재활성화는 아래 라인 주석 해제
-    // this.bossTracker.update(km, delta);
+    this.bossTracker.update(km, delta);
 
     // 배경 색상: 현재 바이옴 색의 25% 밝기로
     const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
