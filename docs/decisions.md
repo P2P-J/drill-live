@@ -51,6 +51,22 @@
   - `TriggerSystem._handleLike` — 활성 LIKE TNT 핸들 유지 + addName
   - `ExplosionEffect.drop` — `names[]`/`sizzleDurationMs` 옵션 + 반환 핸들 `addName(name)`
 
+## 6-2. DRILL UP 효과치 — **×1.5 (spec 명시는 +20%)**
+
+- spec 5-3: "DRILL UP — 드릴 파워 임시 1단계 업 (+20% 속도)".
+- 결정: `mult: 1.5` (=+50%) 사용.
+- 이유:
+  - +20%는 후원 $2를 결제한 시청자 입장에서 효과 체감이 약함. 화면에서 드릴이 눈에 띄게 빨라져야 "내가 후원한 게 동작했다"가 시각적으로 전달됨.
+  - 후원 단가별 강도 단계: DRILL_UP $2(×1.5) → TURBO $5(×3.0) → OVERDRIVE $10(×5.0). 1.5→3.0→5.0 비율이 자연스러워 그대로 둠.
+  - !fast (무료 채팅 트리거)도 ×1.5라 후원자 입장에서 손해는 아님. !fast는 10초/쿨다운 30초, DRILL_UP은 30초/쿨다운 없음으로 가치 차별화.
+
+## 6-3. 선물 구독(GIFT_SUB) — **NUKE + DIAMOND 동시 발동**
+
+- spec 5-3: "GIFT_SUB ($5 이상 선물 구독) → NUKE + DIAMOND 동시".
+- 결정: spec 준수. `TRIGGER_DEFS.GIFT_SUB` = `{ type: 'composite', triggers: ['NUKE', 'DIAMOND'] }`.
+- 구현: `TriggerSystem._handleComposite`가 child triggers를 같은 donor로 재발사.
+- 테스트 키: `T`.
+
 ## 7. 채팅 트리거 쿨다운 — **CooldownManager**
 
 - spec 5-1: "채팅 트리거는 전체 채널 쿨다운, 효과 지속 중 동일 커맨드 무시."
@@ -80,8 +96,16 @@
 
 ---
 
+## 11. 흙 텍스처 색 양자화 — **채널당 6bit (64단계)**
+
+- 문제: `transitionTo` 구간(예: Earth Layer 1 → 2)에서 km마다 색이 lerp됨. 그대로 두면 `dirt-{hex}-v{variant}` 텍스처 키가 km마다 4종(variant 0~3)씩 생성되어 장시간 라이브에서 GPU 메모리에 텍스처가 무한 누적.
+- 결정: `ensureDirtTexture` 진입 시 `quantizeColor`로 채널당 하위 2bit를 마스킹(`& 0xfc`). 64단계 × 3채널 = 최대 262,144 키지만, 실제 바이옴 lerp 경로상 한 layer당 ~수십 개로 수렴.
+- 영향: 색 전환이 64단계로 양자화되지만 화면에서 구분 안 됨 (배경 darken 0.25 적용으로 더 둔감).
+
 ## 향후 정렬 (TODO)
 
 - 보스 PNG 채워지면 활성화 (`megaMole-left.png`, `megaMole-right.png` 등).
 - WebSocket 실연결 (Phase 4): Streamer.bot → Node → 게임. 현재는 키보드 시뮬레이션.
 - 채팅 명령어 화이트리스트/스팸 필터 (spec 5-2).
+- `!reset`/`!jackpot` 같은 스트리머/특수 채팅 트리거 (spec 5-2) — 현재 미구현.
+- BOSS_BOMB / BOSS_NUKE 분리 (현재는 일반 BOMB이 보스 데미지도 동시에 처리).

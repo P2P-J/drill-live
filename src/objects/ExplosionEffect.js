@@ -202,7 +202,7 @@ export class ExplosionEffect {
     });
 
     // 라벨도 같이 살짝 진동
-    this.scene.tweens.add({
+    const labelTween = this.scene.tweens.add({
       targets: labelText,
       x: { from: labelText.x - 3, to: labelText.x + 3 },
       duration: 90,
@@ -213,6 +213,7 @@ export class ExplosionEffect {
     this.scene.time.delayedCall(sizzleMs, () => {
       shakeTween.stop();
       flashTween.stop();
+      labelTween.stop();
       sparkEvent.remove();
       tnt.x = startX;
       tnt.y = startY;

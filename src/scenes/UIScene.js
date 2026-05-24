@@ -3,6 +3,7 @@ import { GAME } from '../config/game.js';
 import { ORES, ORE_IDS } from '../config/ores.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
+import { BOSSES } from '../config/bosses.js';
 
 const INVENTORY_X = 6;
 const INVENTORY_W = 96;
@@ -10,15 +11,6 @@ const INVENTORY_TOP = 110;
 
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
-
-// Phase 2에서 BossTracker로 대체. 1 tile = 1 m 기준 깊이값.
-const BOSS_DEPTHS = [
-  { id: 'mega_mole',    name: 'Mega Mole',     depthM: 9000 },
-  { id: 'crystal_golem',name: 'Crystal Golem', depthM: 45000 },
-  { id: 'abyss_kraken', name: 'Abyss Kraken',  depthM: 90000 },
-  { id: 'ancient_treant',name:'Ancient Treant',depthM: 450000 },
-  { id: 'magma_dragon', name: 'Magma Dragon',  depthM: 950000 },
-];
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -296,7 +288,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   _updateNextBoss(km) {
-    const next = BOSS_DEPTHS.find(b => b.depthM > km);
+    const next = BOSSES.find(b => b.depthM > km);
     if (!next) {
       this.nextBossText.setText('All bosses cleared');
       this.bossDistanceText.setText('');

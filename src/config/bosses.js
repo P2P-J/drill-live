@@ -1,5 +1,4 @@
-// 보스 등장 깊이 + 스탯. PRD 3-3 기준.
-// PRD 단위는 km였으나 우리는 m 단위 사용 (1타일 = 1m).
+// 보스 등장 깊이 + 스탯. PRD 3-3 기준. depthM 필드명은 historical 잔재, 실제 단위는 km.
 
 export const BOSSES = [
   {

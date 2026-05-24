@@ -32,8 +32,18 @@ function ensureTexture(scene, key, drawFn, size = TILE_PX) {
   return key;
 }
 
+// 색상 양자화 — 채널당 6bit(64단계)로 줄여 transitionTo 구간에서 km마다 다른
+// 텍스처 키가 무한히 생기는 걸 막는다. 라이브 장시간 GPU 메모리 보호.
+function quantizeColor(hex) {
+  const r = (hex >> 16) & 0xff;
+  const g = (hex >> 8) & 0xff;
+  const b = hex & 0xff;
+  return ((r & 0xfc) << 16) | ((g & 0xfc) << 8) | (b & 0xfc);
+}
+
 // ── 흙 타일 ──
 export function ensureDirtTexture(scene, baseColor, variant = 0) {
+  baseColor = quantizeColor(baseColor);
   const key = `dirt-${baseColor.toString(16)}-v${variant}`;
   return ensureTexture(scene, key, (g) => {
     const t = TILE_PX;

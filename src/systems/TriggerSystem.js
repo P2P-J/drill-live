@@ -45,6 +45,9 @@ export const TRIGGER_DEFS = {
   // 구독/멤버십
   SUB:        { type: 'oreSpawn', oreId: 'biome',   count: 6, radius: 2.0, priceLabel: 'SUB',    label: 'NEW SUB!',    color: 0xF06292 },
   MEMBER:     { type: 'oreSpawn', oreId: 'diamond', count: 8, radius: 2.5, priceLabel: 'MEMBER', label: 'NEW MEMBER!', color: 0xAB47BC },
+
+  // 선물 구독 ($5+) — NUKE + DIAMOND 동시 발동 (spec 5-3)
+  GIFT_SUB:   { type: 'composite', triggers: ['NUKE', 'DIAMOND'], priceLabel: 'GIFT', label: 'GIFT SUB!', color: 0xFFD54F },
 };
 
 export class TriggerSystem {
@@ -83,7 +86,13 @@ export class TriggerSystem {
       case 'buff':       return this._handleBuff(def);
       case 'oreSpawn':   return this._handleOreSpawn(def);
       case 'like':       return this._handleLike(def, donor);
+      case 'composite':  return this._handleComposite(def, donor);
     }
+  }
+
+  // 여러 트리거를 묶어서 동시 발동 (예: GIFT_SUB = NUKE + DIAMOND)
+  _handleComposite(def, donor) {
+    for (const childId of def.triggers) this.fire(childId, donor);
   }
 
   // 좋아요 — 활성 LIKE TNT가 sizzle 중이면 이름만 추가. 없으면 새 TNT 떨어뜨림.

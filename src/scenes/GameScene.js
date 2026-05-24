@@ -91,23 +91,12 @@ export class GameScene extends Phaser.Scene {
       gameState.addGold(10000);
     });
 
-    // D: 깊이 +1,000km 점프 (driller 위치도 함께 이동)
-    this.input.keyboard.on('keydown-D', () => {
-      const jumpPx = 1000 * GAME.pxPerKm;
-      this.driller.y += jumpPx;
-      this.driller.container.y = this.driller.y;
-      // 점프 후 청크 재로딩
-      this.tileMap.update(this.driller.y);
-    });
-
-    // SHIFT+D: 깊이 +50,000km 점프 (바이옴 빠른 확인용)
+    // D: 깊이 +1,000km 점프. SHIFT+D: +50,000km 점프 (바이옴 빠른 확인용)
     this.input.keyboard.on('keydown-D', (e) => {
-      if (e.shiftKey) {
-        const jumpPx = 49000 * GAME.pxPerKm;
-        this.driller.y += jumpPx;
-        this.driller.container.y = this.driller.y;
-        this.tileMap.update(this.driller.y);
-      }
+      const jumpKm = e.shiftKey ? 50000 : 1000;
+      this.driller.y += jumpKm * GAME.pxPerKm;
+      this.driller.container.y = this.driller.y;
+      this.tileMap.update(this.driller.y);
     });
 
     // R: drillRange 토글 (1 → 2 → 3 → 1)
@@ -146,6 +135,7 @@ export class GameScene extends Phaser.Scene {
       'E':     'SUB',          // 신규 구독
       'M':     'MEMBER',       // 멤버 가입
       'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)
+      'T':     'GIFT_SUB',     // $5+ 선물 구독 → NUKE + DIAMOND 동시
     };
     for (const [key, triggerId] of Object.entries(KEY_TRIGGERS)) {
       this.input.keyboard.on(`keydown-${key}`, () => {
@@ -167,9 +157,13 @@ export class GameScene extends Phaser.Scene {
     gameState.setDepth(km);
     this.bossTracker.update(km, delta);
 
-    // 배경 색상: 현재 바이옴 색의 25% 밝기로
-    const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
-    this.bg.setFillStyle(darken(biomeColor, 0.25));
+    // 배경 색상: 1km 단위로만 갱신 (매 프레임 lerpColor + setFillStyle 부담 제거)
+    const kmRounded = Math.max(0, Math.floor(km));
+    if (kmRounded !== this._lastBgKm) {
+      this._lastBgKm = kmRounded;
+      const biomeColor = this.biomeManager.getColorAt(kmRounded);
+      this.bg.setFillStyle(darken(biomeColor, 0.25));
+    }
 
     // 자동 업그레이드 — 가장 저렴한 구매 가능 항목을 매 0.4초마다 1개씩 구매
     this._autoBuyTimer = (this._autoBuyTimer ?? 0) + delta;

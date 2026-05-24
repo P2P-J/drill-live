@@ -58,9 +58,9 @@ export class BiomeManager {
     return layer.color;
   }
 
-  // 단위: 1 tile = 1 m. 변수명은 호환을 위해 kmToY/yToKm 유지하지만 의미는 meter.
-  kmToY(m) {
-    return m * GAME.pxPerKm;
+  // 단위: 1 tile = 1 km (GAME.pxPerKm = tileSize). spec 준수.
+  kmToY(km) {
+    return km * GAME.pxPerKm;
   }
 
   yToKm(y) {
