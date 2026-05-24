@@ -64,19 +64,9 @@ export class TileMap {
         if (!isWall && this.oreLayer) {
           ore = this.oreLayer.rollOreAt(km);
           if (ore) {
-            const gemKey = ensureGemTexture(this.scene, ore.id, ore.color);
+            const gemKey = ensureGemTexture(this.scene, ore.id);
             gemSprite = this.scene.add.image(cx, cyPx, gemKey);
             gemSprite.setDepth(5);
-            // 살짝 떠 있는 듯한 반짝임 트윈
-            this.scene.tweens.add({
-              targets: gemSprite,
-              scaleX: 1.05,
-              scaleY: 1.05,
-              duration: 1200 + (variant * 100),
-              yoyo: true,
-              repeat: -1,
-              ease: 'Sine.easeInOut',
-            });
           }
         }
 

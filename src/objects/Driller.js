@@ -72,8 +72,9 @@ export class Driller {
     }
     this.worldX = newX;
 
-    // 본체 진행 방향에 따라 살짝 기울이기 (시각 흐름감)
-    this.body.setRotation(this.vx > 0 ? 0.08 : -0.08);
+    // 드릴 전체가 굴러가는 효과 — 컨테이너 회전 (휠 회전 공식)
+    const wheelRadius = this.tileSize * 0.45;
+    this.container.rotation += (this.vx * dt) / wheelRadius;
 
     // 2) 현재 X 컬럼
     const currentTileX = Math.floor((this.worldX - this.xOffset) / this.tileSize);
@@ -122,7 +123,10 @@ export class Driller {
       const ore = this.tileMap.destroyTile(tx, tileY);
       this._spawnParticles(px, py, ore ? ore.color : 0x8B5A2B);
 
-      if (ore) totalGold += ore.value;
+      if (ore) {
+        totalGold += ore.value;
+        gameState.addOre(ore.id);
+      }
     }
 
     if (totalGold > 0) gameState.addGold(totalGold);
