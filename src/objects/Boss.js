@@ -87,32 +87,28 @@ export class Boss {
     return this.hp / this.maxHp;
   }
 
-  // 매 프레임 호출. 드릴 따라가기 + 접촉 시 지속 데미지.
+  // 매 프레임 호출. 보스는 아레나 안에 고정. 드릴이 와서 부딫칠 때 데미지.
   update(delta, driller) {
     if (!this.alive) return;
     const dt = delta / 1000;
-
-    // 부드러운 follow — 드릴 바로 아래에 자리. 드릴 폭(채굴 반경) 따라 거리 조정.
-    const drillScale = driller.sprite?.scaleY ?? 1.0;
-    const drillBottomOffset = 64 * drillScale + this.size.h * 0.5 + 30;  // 드릴 바닥 + 보스 반경 + 마진
-    const targetX = driller.worldX;
-    const targetY = driller.y + drillBottomOffset;
-
-    this.x += (targetX - this.x) * 0.08;
-    this.y += (targetY - this.y) * 0.08;
-    this.container.x = this.x;
-    this.container.y = this.y;
 
     // 드릴과 거리 — 접촉 판정
     const dx = driller.worldX - this.x;
     const dy = driller.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const hitRadius = Math.max(this.size.w, this.size.h) * 0.5;
+    const hitRadius = Math.max(this.size.w, this.size.h) * 0.42;
 
-    if (dist < hitRadius + 80) {
-      // 드릴이 접근/접촉 → 지속 데미지 (DPS = drillSpeedMult * 60)
-      const dps = 60 * (driller.drillSpeedMult ?? 1);
+    if (dist < hitRadius) {
+      // 드릴이 보스 충돌 → 지속 데미지 (DPS = drillSpeedMult * 90)
+      // 충돌 시 드릴을 살짝 튕겨내기 (핀볼 효과)
+      const dps = 90 * (driller.drillSpeedMult ?? 1);
       this._applyContinuousDamage(dps * dt);
+      // 드릴이 보스 가운데에서 멀어지도록 미는 효과
+      if (driller.arenaMode && dist > 1) {
+        const pushStrength = 30;
+        driller.vx += (dx / dist) * pushStrength;
+        driller.vy += (dy / dist) * pushStrength;
+      }
     }
   }
 

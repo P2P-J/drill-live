@@ -10,6 +10,7 @@ import { UPGRADE_ORDER } from '../config/upgrades.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
 import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
 import { BossTracker } from '../systems/BossTracker.js';
+import { ArenaSystem } from '../systems/ArenaSystem.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -49,11 +50,13 @@ export class GameScene extends Phaser.Scene {
       oreLayer: this.oreLayer,
     });
 
-    // 보스 추적기
+    // 보스 아레나 + 추적기
+    this.arenaSystem = new ArenaSystem(this, this.tileMap, this.driller);
     this.bossTracker = new BossTracker(this, {
       driller: this.driller,
       tileMap: this.tileMap,
       buffSystem: this.buffSystem,
+      arenaSystem: this.arenaSystem,
     });
     this.triggerSystem.bossTracker = this.bossTracker;
 

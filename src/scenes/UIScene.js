@@ -160,33 +160,37 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildBuffArea() {
-    // 상단 우측 (Gold 아래) — 활성 버프 칩이 쌓이는 영역
-    this.buffArea = { x: GAME.width - 220, y: 60, items: 0 };
+    // 버프(긍정) 우측, 디버프(부정) 좌측 위.
+    this.buffArea   = { x: GAME.width - 220, y: 240, w: 200 };
+    this.debuffArea = { x: 116,              y: 240, w: 220 };
   }
 
-  _addBuffIndicator(id, label, color) {
-    const slot = this.buffIndicators.size;
-    const x = this.buffArea.x;
-    const y = this.buffArea.y + slot * 56;
+  _addBuffIndicator(id, label, color, isDebuff = false) {
+    const area = isDebuff ? this.debuffArea : this.buffArea;
+    // 같은 영역 안에서 슬롯 카운트
+    const sameAreaCount = [...this.buffIndicators.values()]
+      .filter((b) => b.isDebuff === isDebuff).length;
+    const x = area.x;
+    const y = area.y + sameAreaCount * 60;
 
     const container = this.add.container(x, y);
-    const bg = this.add.rectangle(0, 0, 200, 48, 0x000000, 0.75).setOrigin(0, 0)
-      .setStrokeStyle(2, color);
-    const labelText = this.add.text(10, 6, label, {
+    const bg = this.add.rectangle(0, 0, area.w, 52, 0x000000, 0.85).setOrigin(0, 0)
+      .setStrokeStyle(3, color);
+    // 디버프는 빨간 ⚠ 아이콘 + 좌측 정렬
+    const labelText = this.add.text(10, 4, (isDebuff ? '⚠ ' : '') + label, {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '22px',
-      color: '#ffffff',
+      fontSize: '20px',
+      color: isDebuff ? '#FF5252' : '#ffffff',
     });
-    const timeText = this.add.text(190, 6, '10.0s', {
+    const timeText = this.add.text(area.w - 10, 4, '0.0s', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '20px',
-      color: '#FFD700',
+      color: isDebuff ? '#FF5252' : '#FFD700',
     }).setOrigin(1, 0);
-    // 잔여 시간 막대
-    const bar = this.add.rectangle(0, 44, 200, 4, color).setOrigin(0, 0);
+    const bar = this.add.rectangle(0, 48, area.w, 4, color).setOrigin(0, 0);
 
     container.add([bg, labelText, timeText, bar]);
-    this.buffIndicators.set(id, { container, labelText, timeText, bar });
+    this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });
   }
 
   // ── 상단: Depth + Biome 중앙, Gold 우측 작게 ──
@@ -322,15 +326,18 @@ export class UIScene extends Phaser.Scene {
       this._pushEvent(`Upgrade: ${name} Lv ${level}`, '');
     });
 
-    // 버프 적용 시 인디케이터 추가
+    // 버프 적용 시 인디케이터 추가 (버프=우측 / 디버프=좌측)
     if (this.buffSystem) {
       this.buffSystem.on('apply', ({ id, params }) => {
-        if (this.buffIndicators.has(id)) return;  // 이미 표시 중이면 새로 안 만듦 (잔여시간만 갱신됨)
+        if (this.buffIndicators.has(id)) return;
         const label = params.label ?? id;
-        const color = id === 'drillRangeUp' ? 0xFF9800
-                    : id === 'drillPowerUp' ? 0x4CAF50
-                    :                          0xFFEB3B;
-        this._addBuffIndicator(id, label, color);
+        const isDebuff = !!params.isDebuff;
+        let color;
+        if (isDebuff)                       color = 0xF44336;
+        else if (id === 'drillRangeUp')     color = 0xFF9800;
+        else if (id === 'drillPowerUp')     color = 0x4CAF50;
+        else                                color = 0xFFEB3B;
+        this._addBuffIndicator(id, label, color, isDebuff);
       });
     }
 

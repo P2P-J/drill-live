@@ -1,14 +1,15 @@
 import { BOSSES, BOSS_WARNING_STEPS } from '../config/bosses.js';
 import { Boss } from '../objects/Boss.js';
 
-// 깊이 추적 → 보스 예고 / 소환 / 처치·실패 후처리
-// 드릴은 보스와 무관하게 계속 채굴. 보스가 드릴을 따라오며 접촉 시 자동 데미지.
+// 깊이 추적 → 보스 예고 / 아레나 소환 / 처치·실패 후처리.
+// 보스 등장 시 깨지지 않는 벽으로 둘러싸인 공간 생성 (ArenaSystem 활용).
 export class BossTracker {
   constructor(scene, deps) {
     this.scene = scene;
     this.driller = deps.driller;
     this.tileMap = deps.tileMap;
     this.buffSystem = deps.buffSystem;
+    this.arenaSystem = deps.arenaSystem;
 
     this.activeBoss = null;
     this._defeatedIds = new Set();
@@ -61,9 +62,17 @@ export class BossTracker {
   spawn(def) {
     if (this.activeBoss) return;
 
-    // 드릴 바로 아래에 보스 등장 (아레나 클리어 안 함 — 드릴 계속 채굴)
-    const bossX = this.driller.worldX;
-    const bossY = this.driller.y + 250;  // 드릴 아래
+    // 아레나 활성화 — 드릴 위치 기준으로 아래쪽에 닫힌 공간 생성
+    this.arenaSystem.activate(this.driller.y, {
+      heightTiles: 14,
+      wallColor: 0x37474F,
+      accent: 0xFFD700,
+    });
+
+    // 보스 위치 = 아레나 중앙 하단 (드릴은 위에서 튀어다님)
+    const arena = this.arenaSystem.bounds;
+    const bossX = arena.cx;
+    const bossY = arena.bottom - 120;
 
     const boss = new Boss(this.scene, def, bossX, bossY, {
       tileMap: this.tileMap,
@@ -80,16 +89,20 @@ export class BossTracker {
   _onBossDefeated(boss) {
     this._defeatedIds.add(boss.def.id);
     this.activeBoss = null;
+    this.arenaSystem?.deactivate();
     this._emit('defeated', { boss });
   }
 
   _onBossFailed(boss) {
     this._defeatedIds.add(boss.def.id);
     this.activeBoss = null;
+    this.arenaSystem?.deactivate();
+    // 페널티 디버프 — 드릴 속도 감소 (BuffSystem이 디버프 채널도 처리)
     if (boss.def.failPenalty && this.buffSystem) {
-      this.buffSystem.apply('drillPowerUp', {
+      this.buffSystem.apply('penalty', {
         mult: boss.def.failPenalty.speedMult,
-        label: 'PENALTY',
+        label: `${boss.def.name} ESCAPED`,
+        isDebuff: true,
       }, boss.def.failPenalty.durationMs);
     }
     this._emit('failed', { boss });

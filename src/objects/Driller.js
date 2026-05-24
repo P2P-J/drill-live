@@ -43,7 +43,27 @@ export class Driller {
     this.mineProgress = 0;
     this.isMining = false;
     this._wobble = 0;
-    this._displayedRange = 1;  // 마지막으로 시각 갱신한 range
+    this._displayedRange = 1;
+    // 보스 아레나 모드 — 핀볼 같은 물리로 전환
+    this.arenaMode = false;
+    this.arenaBounds = null;
+    this.vy = 0;  // 아레나에서만 사용
+  }
+
+  enterArena(bounds) {
+    this.arenaMode = true;
+    this.arenaBounds = bounds;
+    // 핀볼 시작 속도 — 강한 좌우 + 위쪽 약간
+    this.vx = (Math.random() < 0.5 ? -1 : 1) * 280;
+    this.vy = -150;
+  }
+
+  exitArena() {
+    this.arenaMode = false;
+    this.arenaBounds = null;
+    this.vy = 0;
+    // 평소 좌우 드리프트 복원
+    this.vx = GAME.bounceSpeed * (Math.random() < 0.5 ? -1 : 1);
   }
 
   _syncUpgrades() {
@@ -57,6 +77,12 @@ export class Driller {
       if (powerBuff) {
         drillSpeedMult *= powerBuff.params.mult;
         engineMult *= powerBuff.params.mult;
+      }
+      // 페널티 디버프 (보스 실패 시) — 속도 감소
+      const penalty = this.buffSystem.get('penalty');
+      if (penalty) {
+        drillSpeedMult *= penalty.params.mult;
+        engineMult *= penalty.params.mult;
       }
     }
 
@@ -84,6 +110,52 @@ export class Driller {
     return Math.floor((this.worldX - this.xOffset) / this.tileSize);
   }
 
+  // 아레나 핀볼 물리 — 좌/우/위/아래 모두 반사. 중력 적용.
+  _updateArena(dt) {
+    const b = this.arenaBounds;
+    // 중력
+    this.vy += 900 * dt;
+    // 최대 속도 제한
+    this.vx = Math.max(-450, Math.min(450, this.vx));
+    this.vy = Math.max(-700, Math.min(700, this.vy));
+
+    let newX = this.worldX + this.vx * dt;
+    let newY = this.y + this.vy * dt;
+
+    if (newX <= b.left) {
+      newX = b.left;
+      this.vx = Math.abs(this.vx) * 0.95;
+      this._spawnBounceParticles(newX, newY, -1);
+      this._squashBounce();
+    } else if (newX >= b.right) {
+      newX = b.right;
+      this.vx = -Math.abs(this.vx) * 0.95;
+      this._spawnBounceParticles(newX, newY, +1);
+      this._squashBounce();
+    }
+    if (newY <= b.top) {
+      newY = b.top;
+      this.vy = Math.abs(this.vy) * 0.85;
+      this._spawnBounceParticles(newX, newY, 0);
+      this._squashBounce();
+    } else if (newY >= b.bottom) {
+      newY = b.bottom;
+      // 바닥 충돌 — 항상 위로 튀게 강한 반발
+      this.vy = -Math.max(280, Math.abs(this.vy) * 0.85);
+      this._spawnBounceParticles(newX, newY, 0);
+      this._squashBounce();
+    }
+
+    this.worldX = newX;
+    this.y = newY;
+    this.container.x = newX;
+    this.container.y = newY;
+    // 회전·sprite 진동 없음 (혼란스러움)
+    this.container.rotation = 0;
+    this.sprite.x = 0;
+    this.isMining = false;
+  }
+
   // 드릴 크기가 채굴 반경에 맞춰 확연히 커짐 (범위 = 드릴 크기 일치감)
   // mining radius = 1.8 + (range-1) * 1.5 (tile)
   // drill scale ≈ mining radius (1 tile = scale 1.0 기준)
@@ -106,6 +178,11 @@ export class Driller {
   update(delta) {
     this._syncUpgrades();
     const dt = delta / 1000;
+
+    if (this.arenaMode) {
+      this._updateArena(dt);
+      return;
+    }
 
     // 좌우 + 벽 반사
     let newX = this.worldX + this.vx * dt * this.engineMult;
