@@ -295,25 +295,25 @@ export class UIScene extends Phaser.Scene {
     this.eventText2.setText(first?.sub ?? second?.title ?? '');
   }
 
-  _updateNextBoss(m) {
-    const next = BOSS_DEPTHS.find(b => b.depthM > m);
+  _updateNextBoss(km) {
+    const next = BOSS_DEPTHS.find(b => b.depthM > km);
     if (!next) {
       this.nextBossText.setText('All bosses cleared');
       this.bossDistanceText.setText('');
       return;
     }
-    const dist = next.depthM - m;
+    const dist = next.depthM - km;
     this.nextBossText.setText(`Next: ${next.name}`);
-    this.bossDistanceText.setText(`${dist.toFixed(0)} m away`);
+    this.bossDistanceText.setText(`${dist.toFixed(0)} km away`);
   }
 
   _wireEvents() {
-    gameState.on('depth', (m) => {
-      this.depthText.setText(`Depth: ${m.toFixed(0)} m`);
-      const layer = this.biomeManager.getLayerAt(Math.max(0, m));
+    gameState.on('depth', (km) => {
+      this.depthText.setText(`Depth: ${km.toFixed(0)} km`);
+      const layer = this.biomeManager.getLayerAt(Math.max(0, km));
       const short = layer.name.split(' ')[0];
       this.biomeText.setText(`${layer.biomeName} - Layer ${short}`);
-      this._updateNextBoss(m);
+      this._updateNextBoss(km);
     });
 
     gameState.on('gold', (g) => {

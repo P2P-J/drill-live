@@ -147,25 +147,20 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // B: 다음 보스 즉시 강제 소환 (테스트용)
-    this.input.keyboard.on('keydown-B', () => {
-      this.bossTracker.forceSpawnNext();
-    });
-    // N: 활성 보스 즉시 처치 (테스트용)
-    this.input.keyboard.on('keydown-N', () => {
-      this.bossTracker.activeBoss?.forceDefeat();
-    });
+    // 보스 키 일시 비활성화 (PNG 준비 후 재활성화)
+    // this.input.keyboard.on('keydown-B', () => this.bossTracker.forceSpawnNext());
+    // this.input.keyboard.on('keydown-N', () => this.bossTracker.activeBoss?.forceDefeat());
   }
 
   update(_time, delta) {
     this.buffSystem.update();
-    // 드릴은 보스와 무관하게 계속 채굴 (보스 활성 중에도 움직임)
     this.driller.update(delta);
     this.tileMap.update(this.driller.y);
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
-    this.bossTracker.update(km, delta);
+    // 보스 일시 비활성화 (사용자 디자인 PNG 준비 전까지) — 재활성화는 아래 라인 주석 해제
+    // this.bossTracker.update(km, delta);
 
     // 배경 색상: 현재 바이옴 색의 25% 밝기로
     const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
