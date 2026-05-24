@@ -23,8 +23,8 @@ export class GameScene extends Phaser.Scene {
     // 게임 카메라는 위쪽 1400px만 사용. 하단은 UIScene이 차지.
     this.cameras.main.setViewport(0, 0, GAME.width, GAME.gameAreaHeight);
 
-    // 배경 (타일 너머)
-    this.bg = this.add.rectangle(0, 0, GAME.width, GAME.height * 100, 0x111111)
+    // 배경 — 매 프레임 현재 바이옴 색을 어둡게 칠해 깊이감 부여
+    this.bg = this.add.rectangle(0, 0, GAME.width, GAME.height, 0x111111)
       .setOrigin(0, 0)
       .setDepth(-10)
       .setScrollFactor(0);
@@ -46,7 +46,49 @@ export class GameScene extends Phaser.Scene {
       biomeManager: this.biomeManager,
     });
 
+    this._setupDebugKeys();
+
     gameState.setDepth(0);
+  }
+
+  _setupDebugKeys() {
+    // G: 골드 +10,000
+    this.input.keyboard.on('keydown-G', () => {
+      gameState.addGold(10000);
+    });
+
+    // D: 깊이 +1,000km 점프 (driller 위치도 함께 이동)
+    this.input.keyboard.on('keydown-D', () => {
+      const jumpPx = 1000 * GAME.pxPerKm;
+      this.driller.y += jumpPx;
+      this.driller.container.y = this.driller.y;
+      // 점프 후 청크 재로딩
+      this.tileMap.update(this.driller.y);
+    });
+
+    // SHIFT+D: 깊이 +50,000km 점프 (바이옴 빠른 확인용)
+    this.input.keyboard.on('keydown-D', (e) => {
+      if (e.shiftKey) {
+        const jumpPx = 49000 * GAME.pxPerKm;
+        this.driller.y += jumpPx;
+        this.driller.container.y = this.driller.y;
+        this.tileMap.update(this.driller.y);
+      }
+    });
+
+    // R: drillRange 토글 (1 → 2 → 3 → 1)
+    this.input.keyboard.on('keydown-R', () => {
+      const curr = gameState.upgrades.drillRange;
+      const next = curr >= 3 ? 1 : curr + 1;
+      gameState.setUpgrade('drillRange', next);
+    });
+
+    // P: drillPower 토글 (1 → 5 → 1)
+    this.input.keyboard.on('keydown-P', () => {
+      const curr = gameState.upgrades.drillPower;
+      const next = curr >= 5 ? 1 : curr + 1;
+      gameState.setUpgrade('drillPower', next);
+    });
   }
 
   update(_time, delta) {
@@ -55,5 +97,16 @@ export class GameScene extends Phaser.Scene {
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
+
+    // 배경 색상: 현재 바이옴 색의 25% 밝기로
+    const biomeColor = this.biomeManager.getColorAt(Math.max(0, km));
+    this.bg.setFillStyle(darken(biomeColor, 0.25));
   }
+}
+
+function darken(hex, factor) {
+  const r = Math.round(((hex >> 16) & 0xff) * factor);
+  const g = Math.round(((hex >> 8) & 0xff) * factor);
+  const b = Math.round((hex & 0xff) * factor);
+  return (r << 16) | (g << 8) | b;
 }
