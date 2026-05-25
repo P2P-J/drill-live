@@ -31,10 +31,76 @@ export class UIScene extends Phaser.Scene {
     this._buildTopHud();
     this._buildInventory();
     this._buildBottomBar();
+    this._buildStatsPanel();
     this._buildBuffArea();
     this._buildAnnouncement();
     this._buildBossHud();
     this._wireEvents();
+    this._refreshStats();
+  }
+
+  // 우측 상단 — 드릴 스펙(파워/범위/엔진) + 현재 속도 배율(버프 포함)
+  _buildStatsPanel() {
+    const w = 270, h = 142;
+    const x = GAME.width - w - 12;
+    const y = 100;
+    const bg = this.add.rectangle(x, y, w, h, 0x000000, 0.65).setOrigin(0, 0).setStrokeStyle(2, 0xFFD700, 0.65);
+    const title = this.add.text(x + w / 2, y + 4, 'DRILL STATS', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFD700',
+    }).setOrigin(0.5, 0);
+
+    // 행별 라벨/값/Lv바
+    const rowY = (i) => y + 26 + i * 26;
+    const rowBgY = (i) => rowY(i) + 16;
+    const ROW_BAR_W = w - 24;
+    const ROW_BAR_H = 5;
+
+    this._statRows = [];
+
+    const addRow = (i, key, labelText, maxLv, fillColor) => {
+      const label = this.add.text(x + 12, rowY(i), labelText, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#FFFFFF',
+      });
+      const value = this.add.text(x + w - 12, rowY(i), `Lv 1/${maxLv}`, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#FFD54F',
+      }).setOrigin(1, 0);
+      // 빈 바 + 채움 바
+      const barBg = this.add.rectangle(x + 12, rowBgY(i), ROW_BAR_W, ROW_BAR_H, 0x222222).setOrigin(0, 0);
+      const barFill = this.add.rectangle(x + 12, rowBgY(i), ROW_BAR_W, ROW_BAR_H, fillColor).setOrigin(0, 0);
+      barFill.scaleX = 1 / maxLv;
+      this._statRows.push({ key, label, value, barFill, maxLv });
+    };
+
+    addRow(0, 'drillPower', 'POWER',  5, 0x4CAF50);
+    addRow(1, 'drillRange', 'RANGE',  3, 0xFF9800);
+    addRow(2, 'engine',     'ENGINE', 3, 0x03A9F4);
+
+    // SPEED — 누적 효과 (업그레이드 × 버프). 진행바 없이 텍스트만.
+    this.statSpeedLabel = this.add.text(x + 12, rowY(3) + 8, 'SPEED', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFFFFF',
+    });
+    this.statSpeedValue = this.add.text(x + w - 12, rowY(3) + 8, '×1.0', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '16px', color: '#FFEB3B',
+    }).setOrigin(1, 0);
+  }
+
+  _refreshStats() {
+    if (!this.upgradeSystem) return;
+    const ups = this.upgradeSystem.state.upgrades;
+    for (const row of this._statRows ?? []) {
+      const lv = ups[row.key] ?? 1;
+      row.value.setText(`Lv ${lv}/${row.maxLv}`);
+      row.barFill.scaleX = Math.min(1, lv / row.maxLv);
+    }
+    // SPEED = drillPower 누적 × drillPowerUp 버프 (= 드릴 속도 실효 배율)
+    const baseMult = this.upgradeSystem.getDrillSpeedMult?.() ?? 1.0;
+    let buffMult = 1.0;
+    const dpu = this.buffSystem?.get?.('drillPowerUp');
+    if (dpu) buffMult *= dpu.params.mult ?? 1.0;
+    const effective = baseMult * buffMult;
+    this.statSpeedValue.setText(`×${effective.toFixed(1)}`);
+    // 버프 활성 시 빨간 강조
+    this.statSpeedValue.setColor(buffMult > 1.001 ? '#FF5252' : '#FFEB3B');
   }
 
   _buildBossHud() {
@@ -125,6 +191,9 @@ export class UIScene extends Phaser.Scene {
   }
 
   update() {
+    // 스탯 패널 — 버프 영향 있는 SPEED 항목 위해 매 프레임 가벼운 갱신
+    this._refreshStats();
+
     // 버프 잔여시간 갱신
     for (const [id, ind] of this.buffIndicators) {
       const remainMs = this.buffSystem?.remainingMs(id) ?? 0;
@@ -152,9 +221,9 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildBuffArea() {
-    // 버프(긍정) 우측 상단, 디버프(부정) 좌측 상단 (광물 인벤토리 아래)
-    this.buffArea   = { x: GAME.width - 290, y: 240, w: 270 };
-    this.debuffArea = { x: 116,              y: 240, w: 300 };
+    // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
+    this.buffArea   = { x: GAME.width - 290, y: 260, w: 270 };
+    this.debuffArea = { x: 116,              y: 260, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
