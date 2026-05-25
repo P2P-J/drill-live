@@ -20,7 +20,7 @@ const VALID_TRIGGER_IDS = new Set([
   'DRILL_UP', 'TURBO', 'OVERDRIVE',
   'GOLD_RUSH', 'GEM_DROP', 'DIAMOND', 'SPECIAL',
   'RANGE_UP', 'FAST',
-  'SUB', 'MEMBER', 'GIFT_SUB',
+  'SUB',
   'RESET', 'JACKPOT', 'BOSS_SPAWN',  // 스트리머 전용
 ]);
 

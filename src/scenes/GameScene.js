@@ -140,10 +140,8 @@ export class GameScene extends Phaser.Scene {
       'ZERO':  'DIAMOND',      // $10
       'Q':     'SPECIAL',      // $15
       'W':     'FAST',         // !fast
-      'E':     'SUB',          // 신규 구독
-      'M':     'MEMBER',       // 멤버 가입
+      'E':     'SUB',          // 신규 구독 — 드릴 아래 10줄 바이옴 특수광물 채우기
       'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)
-      'T':     'GIFT_SUB',     // $5+ 선물 구독 → NUKE + DIAMOND 동시
       'F':     'JACKPOT',      // !jackpot — 전 레이어 다이아 파티 (스트리머)
       'Z':     'RESET',        // !reset — 새 맵 생성 (스트리머)
     };

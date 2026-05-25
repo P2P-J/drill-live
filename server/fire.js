@@ -4,7 +4,7 @@
 //   node server/fire.js BOMB             # 후원자 이름 없이
 //   node server/fire.js BOMB Alex        # 이름 지정
 //   node server/fire.js LIKE BigDripz
-//   node server/fire.js GIFT_SUB Cookie5
+//   node server/fire.js SUB Cookie5     # 신규 구독 (드릴 아래 10줄 광물 채움)
 
 const PORT = process.env.PORT || 8080;
 

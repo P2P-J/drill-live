@@ -31,7 +31,7 @@ npm run server          # 포트 8080
 npm run fire BOMB Alex
 npm run fire NUKE
 npm run fire LIKE BigDripz
-npm run fire GIFT_SUB Cookie5
+npm run fire SUB Cookie5
 ```
 
 ### 방법 2: curl
@@ -64,7 +64,8 @@ curl -X POST http://localhost:8080/like-batch \
 `DRILL_UP`, `TURBO`, `OVERDRIVE`,
 `GOLD_RUSH`, `GEM_DROP`, `DIAMOND`, `SPECIAL`,
 `RANGE_UP`, `FAST`,
-`SUB`, `MEMBER`, `GIFT_SUB`
+`SUB`,
+`RESET`, `JACKPOT`, `BOSS_SPAWN` (스트리머 전용)
 
 자세한 효과는 [docs/test-commands.md](../docs/test-commands.md) 참조.
 

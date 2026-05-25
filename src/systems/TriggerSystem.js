@@ -4,6 +4,7 @@
 
 import { ExplosionEffect } from '../objects/ExplosionEffect.js';
 import { ORES } from '../config/ores.js';
+import { GAME } from '../config/game.js';
 import { gameState } from './GameState.js';
 
 const MOCK_DONORS = [
@@ -42,12 +43,8 @@ export const TRIGGER_DEFS = {
   // 채팅 (전체 채널 쿨다운 30초)
   FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 30000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
 
-  // 구독/멤버십
-  SUB:        { type: 'oreSpawn', oreId: 'biome',   count: 6, radius: 2.0, priceLabel: 'SUB',    label: 'NEW SUB!',    color: 0xF06292 },
-  MEMBER:     { type: 'oreSpawn', oreId: 'diamond', count: 8, radius: 2.5, priceLabel: 'MEMBER', label: 'NEW MEMBER!', color: 0xAB47BC },
-
-  // 선물 구독 ($5+) — NUKE + DIAMOND 동시 발동 (spec 5-3)
-  GIFT_SUB:   { type: 'composite', triggers: ['NUKE', 'DIAMOND'], priceLabel: 'GIFT', label: 'GIFT SUB!', color: 0xFFD54F },
+  // 신규 구독 — 드릴 아래 10줄을 현재 바이옴 특수 광물로 가득 채움
+  SUB:        { type: 'special', action: 'subscribe', priceLabel: 'SUB', label: 'NEW SUB!', color: 0xF06292 },
 
   // 스트리머 전용 (spec 5-3) — youtube-bridge에서 owner/moderator만 발동 가능
   RESET:      { type: 'special', action: 'reset',     priceLabel: '!reset',      label: 'NEW MAP!',  color: 0xFFFFFF },
@@ -77,7 +74,7 @@ export class TriggerSystem {
       DRILL_UP: 'drill_up', TURBO: 'turbo', OVERDRIVE: 'overdrive',
       RANGE_UP: 'range_up', FAST: 'chat_fast',
       GOLD_RUSH: 'gold_rush', GEM_DROP: 'gem_drop', DIAMOND: 'diamond_spawn', SPECIAL: 'special_ore',
-      SUB: 'sub_jingle', MEMBER: 'member_jingle', GIFT_SUB: 'gift_sub',
+      SUB: 'sub_jingle',
     };
     const key = map[triggerId];
     if (key) this.soundManager?.play(key);
@@ -118,6 +115,26 @@ export class TriggerSystem {
       case 'reset':     return this._doReset();
       case 'jackpot':   return this._doJackpot();
       case 'bossSpawn': return this._doBossSpawn();
+      case 'subscribe': return this._doSubscribe(donor);
+    }
+  }
+
+  // 신규 구독 — 드릴 바로 아래 10줄(전 채굴 폭)을 현재 바이옴 특수 광물로 채움
+  _doSubscribe(_donor) {
+    const oreId = this._biomeSpecialOre();
+    const ore = ORES[oreId];
+    if (!ore) return;
+    const centerTileX = this.driller.getCurrentTileX();
+    const startTileY = this.driller.getTileY() + 1;  // 드릴 바로 아래부터
+    const rows = 10;
+    // 채굴 가능 영역 = 벽 안쪽 (wallLeftX+1 ~ wallRightX-1)
+    const wallLeftX = GAME.wallLeftX;
+    const wallRightX = GAME.wallRightX;
+    for (let dy = 0; dy < rows; dy++) {
+      const ty = startTileY + dy;
+      for (let tx = wallLeftX + 1; tx < wallRightX; tx++) {
+        this.tileMap.convertToOre(tx, ty, ore);
+      }
     }
   }
 
