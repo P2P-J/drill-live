@@ -270,8 +270,13 @@ export class Driller {
 
     if (!inKnockback && blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
       if (!this.isMining) {
-        // 채굴 시작 — drill_loop 시작
-        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.35 });
+        // 채굴 시작 — drill_loop 시작. mp3 기본 +5dB (≈ volume 0.62), rate는 drillSpeedMult.
+        this._drillLoop = this.soundManager?.playLoop('drill_loop', {
+          volume: 0.62, rate: this.drillSpeedMult ?? 1.0,
+        });
+      } else if (this._drillLoop?.setRate) {
+        // 채굴 중 속도 변화(버프/업그레이드) 즉시 반영 — 사운드 배속도 같이 변동
+        this._drillLoop.setRate(this.drillSpeedMult ?? 1.0);
       }
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;

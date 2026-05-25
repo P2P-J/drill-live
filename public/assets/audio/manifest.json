@@ -1,5 +1,7 @@
 {
   "_description": "오디오 파일 매니페스트. /assets/audio/<file>를 등록하면 SoundManager가 procedural 합성 대신 이걸 재생.",
   "_keys": "키는 SoundManager.js의 RECIPES에 정의된 것. 예: mine_dirt, bomb_small, drill_loop, gift_sub 등.",
-  "files": []
+  "files": [
+    { "key": "drill_loop", "file": "drillsound.mp3" }
+  ]
 }

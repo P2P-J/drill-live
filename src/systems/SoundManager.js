@@ -131,9 +131,17 @@ export class SoundManager {
 
     // 1) 파일 override
     if (this.scene.cache.audio.exists(key)) {
-      const sound = this.scene.sound.add(key, { loop: true, volume: (opts.volume ?? 0.3) * this.masterVolume });
+      const sound = this.scene.sound.add(key, {
+        loop: true,
+        volume: (opts.volume ?? 0.3) * this.masterVolume,
+        rate: opts.rate ?? 1.0,
+      });
       sound.play();
-      const handle = { stop: () => { sound.stop(); this._loops.delete(key); } };
+      const handle = {
+        stop: () => { sound.stop(); this._loops.delete(key); },
+        setRate: (rate) => { try { sound.setRate?.(rate); } catch (_e) { sound.rate = rate; } },
+        setVolume: (v) => { try { sound.setVolume?.(v * this.masterVolume); } catch (_e) { sound.volume = v * this.masterVolume; } },
+      };
       this._loops.set(key, { handle });
       return handle;
     }
@@ -159,6 +167,9 @@ export class SoundManager {
         gain.disconnect();
         this._loops.delete(key);
       },
+      // procedural loop은 rate/volume 동적 변경 미지원 — no-op (파일 override 시에만 동작)
+      setRate: (_r) => {},
+      setVolume: (v) => { gain.gain.value = v * this.masterVolume; gain.gain._configuredVolume = v * this.masterVolume; },
     };
     this._loops.set(key, { handle, gain });
     return handle;
