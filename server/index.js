@@ -10,6 +10,7 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
+import { OverlayThrottle } from './overlay.js';
 
 const PORT = process.env.PORT || 8080;
 
@@ -26,6 +27,14 @@ const VALID_TRIGGER_IDS = new Set([
   'UPGRADE_RANGE', 'UPGRADE_ENGINE',                                            // 채팅 범위/엔진 업그레이드
   'RESET', 'JACKPOT',                                                           // 스트리머 전용
 ]);
+
+// 화면 표시 전용 오버레이 kind 목록 (게임 메커니즘과 분리)
+const VALID_OVERLAY_KINDS = new Set(['SUB', 'MEMBER', 'SUPERCHAT', 'LIKE']);
+const overlayThrottle = new OverlayThrottle();
+
+function sanitizeName(raw) {
+  return String(raw ?? '').slice(0, 80).trim();
+}
 
 const app = express();
 app.use(express.json());
@@ -65,6 +74,37 @@ app.post('/trigger', (req, res) => {
   res.json({ ok: true, delivered: clients.size, event });
 });
 
+// 표시 전용 오버레이 — 게임 메커니즘에 영향 없음.
+// LIKE는 서버에서 dedupe(5s/name) + rate limit(10/s) 적용.
+app.post('/overlay', (req, res) => {
+  const { kind, name, amount, tier, text } = req.body ?? {};
+  if (!VALID_OVERLAY_KINDS.has(kind)) {
+    return res.status(400).json({ error: 'invalid kind', got: kind, valid: [...VALID_OVERLAY_KINDS] });
+  }
+  const cleanName = sanitizeName(name);
+  if (!cleanName) return res.status(400).json({ error: 'name required' });
+
+  const admitted = kind === 'LIKE'
+    ? overlayThrottle.admitLike(cleanName)
+    : overlayThrottle.admitOther();
+
+  if (!admitted) {
+    return res.json({ ok: true, throttled: true, delivered: 0 });
+  }
+
+  const event = {
+    type: 'overlay',
+    kind,
+    name: cleanName,
+    amount: typeof amount === 'number' ? amount : null,
+    tier: typeof tier === 'string' ? tier : null,
+    text: typeof text === 'string' ? text.slice(0, 200) : null,
+    at: Date.now(),
+  };
+  broadcast(event);
+  res.json({ ok: true, delivered: clients.size, event });
+});
+
 // LIKE 배치 — { donors: [name, name, ...] } → 각 이름마다 LIKE 트리거 1개씩 broadcast
 app.post('/like-batch', (req, res) => {
   const donors = Array.isArray(req.body?.donors) ? req.body.donors : [];
@@ -77,7 +117,12 @@ app.post('/like-batch', (req, res) => {
 });
 
 app.get('/status', (_req, res) => {
-  res.json({ ok: true, clients: clients.size, validTriggers: [...VALID_TRIGGER_IDS] });
+  res.json({
+    ok: true,
+    clients: clients.size,
+    validTriggers: [...VALID_TRIGGER_IDS],
+    validOverlayKinds: [...VALID_OVERLAY_KINDS],
+  });
 });
 
 server.listen(PORT, () => {
