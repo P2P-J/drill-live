@@ -62,7 +62,7 @@ export class TriggerSystem {
     this.oreLayer = deps.oreLayer;
 
     this.soundManager = deps.soundManager;
-    this.explosionEffect = new ExplosionEffect(scene, this.tileMap, this.soundManager);
+    this.explosionEffect = new ExplosionEffect(scene, this.tileMap, this.soundManager, this.driller);
     this.cooldownManager = deps.cooldownManager;
     this._listeners = new Map();
   }

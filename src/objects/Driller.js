@@ -47,10 +47,12 @@ export class Driller {
     this.engineMult = 1.0;
     this.drillRange = 1;
 
-    // 좌우 통통 튀기 (미미한 드리프트)
+    // 좌우 통통 튀기 (미미한 드리프트) + 주기적 랜덤 임펄스로 자유로운 움직임
     this.leftBound = this.xOffset + (GAME.wallLeftX + 1) * this.tileSize + this.tileSize * 0.46;
     this.rightBound = this.xOffset + GAME.wallRightX * this.tileSize - this.tileSize * 0.46;
     this.vx = GAME.bounceSpeed * (Math.random() < 0.5 ? -1 : 1);
+    this._nextRandomKickAt = 0;  // 첫 update에 바로 한 번 보정
+    this._knockbackUntil = 0;    // 폭탄 임펄스 받은 후 mining vy 리셋 잠시 무시
 
     this.mineProgress = 0;
     this.isMining = false;
@@ -212,26 +214,33 @@ export class Driller {
       return;
     }
 
-    // 좌우 + 벽 반사 (매 반사마다 속도 랜덤화 0.55~1.55배로 불규칙성 부여)
+    // 주기적 랜덤 vx 임펄스 — 벽 안 부딫쳐도 방향/속도가 불규칙하게 변함
+    const now = this.scene.time.now;
+    if (now >= this._nextRandomKickAt) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      const strength = 30 + Math.random() * 60;  // 30~90 px/s 임펄스
+      this.vx += dir * strength;
+      this._nextRandomKickAt = now + 1200 + Math.random() * 1800;  // 1.2~3초 간격
+    }
+
+    // 좌우 + 벽 반사 (매 반사마다 속도 랜덤화 0.7~1.3배)
     let newX = this.worldX + this.vx * dt * this.engineMult;
     if (newX <= this.leftBound) {
       newX = this.leftBound;
-      const jitter = 0.55 + Math.random() * 1.0;
-      this.vx = Math.abs(this.vx) * jitter;
+      this.vx = Math.abs(this.vx) * (0.7 + Math.random() * 0.6);
       this._spawnBounceParticles(newX, this.y, -1);
       this._squashBounce();
     } else if (newX >= this.rightBound) {
       newX = this.rightBound;
-      const jitter = 0.55 + Math.random() * 1.0;
-      this.vx = -Math.abs(this.vx) * jitter;
+      this.vx = -Math.abs(this.vx) * (0.7 + Math.random() * 0.6);
       this._spawnBounceParticles(newX, this.y, +1);
       this._squashBounce();
     }
-    // 너무 느려지거나 너무 빨라지지 않게 clamp
-    const minSpd = GAME.bounceSpeed * 0.6;
-    const maxSpd = GAME.bounceSpeed * 1.8;
-    if (Math.abs(this.vx) < minSpd) this.vx = Math.sign(this.vx) * minSpd;
-    if (Math.abs(this.vx) > maxSpd) this.vx = Math.sign(this.vx) * maxSpd;
+    // 공기 저항 — 폭탄 임펄스 받으면 한참 빠르게 움직이다가 서서히 진정
+    this.vx *= 0.992;
+    // 최대 속도 — 너무 빨라지면 화면 밖으로 튕겨나가지 않게 clamp
+    const MAX_VX = 360;
+    if (Math.abs(this.vx) > MAX_VX) this.vx = Math.sign(this.vx) * MAX_VX;
     this.worldX = newX;
 
     // 회전 없음. 채굴 중 상하 반동(드릴 두들기는 느낌) — sprite.y로 표현.
@@ -257,8 +266,9 @@ export class Driller {
     const nextTileY = Math.floor((this.y + epsilon) / this.tileSize);
 
     const blocker = this.tileMap.getTileAt(currentTileX, nextTileY);
+    const inKnockback = this.scene.time.now < this._knockbackUntil;
 
-    if (blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
+    if (!inKnockback && blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
       if (!this.isMining) {
         // 채굴 시작 — drill_loop 시작
         this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.35 });
@@ -273,8 +283,8 @@ export class Driller {
         this._applyCracksToSemicircle(nextTileY, currentTileX, crackStage);
       }
 
-      // 채굴 중에는 vy 리셋 — 지면이 잡아주는 셈
-      this.vy = 0;
+      // 채굴 중에는 vy 리셋 — 단, 폭탄 임펄스 직후 350ms는 보호 (드릴이 정말 튕겨나가게)
+      if (this.scene.time.now > this._knockbackUntil) this.vy = 0;
 
       if (this.mineProgress >= GAME.minePerTileSeconds) {
         this._mineSemicircle(nextTileY, currentTileX);
@@ -294,24 +304,32 @@ export class Driller {
         this._drillLoop = null;
       }
       this.isMining = false;
-      // 자유낙하 — 중력 가속 + sub-step 충돌 검사.
-      // FPS 저하나 vy가 클 때 한 프레임에 1 타일 이상 점프해서 중간 타일 충돌 검사를 놓치는 버그 방지.
+      // 자유낙하 / 자유비행 — 중력 가속 + sub-step 충돌 검사.
+      // 폭탄 임펄스로 위로 날아갈 수도 있어서 하강/상승 둘 다 처리.
       this.vy = Math.min(MAX_FALL_SPEED, this.vy + GRAVITY_PX_S2 * this.engineMult * dt);
-      let remaining = this.vy * dt;
+      const moveDist = this.vy * dt;
       const T = this.tileSize;
-      const subStep = T * 0.5;  // 32px 단위로 충돌 검사
-      while (remaining > 0) {
-        const step = Math.min(remaining, subStep);
-        const probeTileY = Math.floor((this.y + step + epsilon) / T);
-        const probeTile = this.tileMap.getTileAt(currentTileX, probeTileY);
-        if (probeTile && !probeTile.destroyed && !probeTile.isWall && probeTileY >= 0) {
-          // 솔리드 타일 도달 — 타일 윗변에 스냅, 다음 프레임에 mining 시작
-          this.y = probeTileY * T;
-          this.vy = 0;
-          break;
+      if (moveDist >= 0) {
+        // 하강 — sub-step 충돌 검사 (FPS 저하나 vy 클 때 중간 타일 놓치지 않게)
+        let remaining = moveDist;
+        const subStep = T * 0.5;
+        while (remaining > 0) {
+          const step = Math.min(remaining, subStep);
+          const probeTileY = Math.floor((this.y + step + epsilon) / T);
+          const probeTile = this.tileMap.getTileAt(currentTileX, probeTileY);
+          if (probeTile && !probeTile.destroyed && !probeTile.isWall && probeTileY >= 0) {
+            this.y = probeTileY * T;
+            this.vy = 0;
+            break;
+          }
+          this.y += step;
+          remaining -= step;
         }
-        this.y += step;
-        remaining -= step;
+      } else {
+        // 상승 — 폭탄 임펄스로 위로 튕겼을 때. 위쪽은 보통 mined 영역이라 충돌 검사 생략.
+        // 너무 위로(화면 밖)는 못 가게 clamp.
+        this.y = Math.max(-T * 4, this.y + moveDist);
+        if (this.y <= -T * 4) this.vy = 0;
       }
       // 채굴 중이 아니면 남은 크랙 정리
       if (this._crackedTiles && this._crackedTiles.length > 0) {
@@ -454,5 +472,21 @@ export class Driller {
 
   getTileY() {
     return Math.floor(this.y / this.tileSize);
+  }
+
+  // 폭탄 폭발로부터 드릴 넉백. ExplosionEffect에서 거리/반경 기반으로 호출.
+  // 임펄스를 vx/vy에 더하고, 350ms 동안 mining 진입을 막아서 자유 비행 유지.
+  applyKnockback(impulseX, impulseY) {
+    this.vx += impulseX;
+    this.vy += impulseY;
+    this._knockbackUntil = this.scene.time.now + 350;
+    // 카메라도 살짝 같이 움직이는 느낌으로 sprite scale 펑 효과
+    this.scene.tweens.killTweensOf(this.container);
+    this.scene.tweens.add({
+      targets: this.container,
+      scaleX: 1.15, scaleY: 0.88,
+      duration: 90, yoyo: true,
+      ease: 'Quad.easeOut',
+    });
   }
 }

@@ -51,10 +51,11 @@ const GRAVITY_PX_S2 = 1250;
 const MAX_FALL_SPEED = 2400;  // 단말속도 — 시야 밖에서 떨어진 폭탄도 합리적 속도로 도달
 
 export class ExplosionEffect {
-  constructor(scene, tileMap, soundManager = null) {
+  constructor(scene, tileMap, soundManager = null, driller = null) {
     this.scene = scene;
     this.tileMap = tileMap;
     this.soundManager = soundManager;
+    this.driller = driller;
     // 활성 TNT 본체들 — 매 프레임 중력 + 충돌 계산. GameScene.update에서 step() 호출.
     this._bodies = [];
   }
@@ -360,8 +361,28 @@ export class ExplosionEffect {
       }
     }
 
+    // 드릴 넉백 — 폭발 반경의 2.5배 이내면 거리 반비례 임펄스
+    this._applyKnockbackToDriller(centerX, centerY, radiusPx);
+
     // 화면 흔들림
     this.scene.cameras.main.shake(Math.min(500, 200 + radius * 60), shake);
+  }
+
+  _applyKnockbackToDriller(centerX, centerY, radiusPx) {
+    const drill = this.driller;
+    if (!drill || drill.arenaMode) return;  // 아레나 모드에선 자체 핀볼 물리 — 간섭 X
+    const dx = drill.worldX - centerX;
+    const dy = drill.y - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const effectiveRange = radiusPx * 2.5;
+    if (dist > effectiveRange) return;
+    // 거리 반비례 (가까울수록 강함). 폭발 중심 일치 시 위로 살짝 튕김.
+    const power = Math.max(0, 1 - dist / effectiveRange);
+    const maxImpulse = radiusPx * 2.2;   // 반경 비례 임펄스 강도
+    const nx = dist > 0.1 ? dx / dist : (Math.random() < 0.5 ? -1 : 1);
+    const ny = dist > 0.1 ? dy / dist : -1;
+    const impulse = power * maxImpulse;
+    drill.applyKnockback(nx * impulse, ny * impulse * 0.7);
   }
 
   _spawnFireParticles(x, y, radiusPx) {
