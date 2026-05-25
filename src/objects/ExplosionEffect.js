@@ -46,9 +46,10 @@ function ensureTntTexture(scene, key, bodyColor) {
 }
 
 export class ExplosionEffect {
-  constructor(scene, tileMap) {
+  constructor(scene, tileMap, soundManager = null) {
     this.scene = scene;
     this.tileMap = tileMap;
+    this.soundManager = soundManager;
   }
 
   // 후원 폭탄 트리거 - TNT가 위에서 떨어져서 땅에 닿고, sizzle 후 폭발.
@@ -63,6 +64,7 @@ export class ExplosionEffect {
     const dropTiles = opts.dropFromTilesAbove ?? 14;
     const sizzleDurationMs = opts.sizzleDurationMs ?? 1000;
     const names = opts.names ? [...opts.names] : [];
+    const explosionSound = opts.explosionSound ?? 'bomb_small';
 
     const tntKey = ensureTntTexture(this.scene, `tnt-${color.toString(16)}`, color);
 
@@ -117,11 +119,14 @@ export class ExplosionEffect {
       ease: 'Quad.easeIn',
       onComplete: () => {
         handle.isLanded = true;
+        // 도화선 sizzle 사운드 — 지정 duration만큼만 재생 후 자동 fade out
+        this.soundManager?.play('tnt_sizzle', { duration: sizzleDurationMs / 1000 });
         this._sizzle(tnt, labelText, sizzleDurationMs, () => {
           handle.isExploded = true;
           tnt.destroy();
           labelText.destroy();
           namesText.destroy();
+          this.soundManager?.play(explosionSound);
           this._explode(targetX, explosionY, { radius, color, shake });
         });
       },

@@ -4,11 +4,12 @@ import { gameState } from '../systems/GameState.js';
 import { ensureDrillerTexture } from './DrillerArt.js';
 
 export class Driller {
-  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null, buffSystem = null) {
+  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null, buffSystem = null, soundManager = null) {
     this.scene = scene;
     this.tileMap = tileMap;
     this.upgradeSystem = upgradeSystem;
     this.buffSystem = buffSystem;
+    this.soundManager = soundManager;
     this.tileSize = GAME.tileSize;
     this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * this.tileSize) / 2);
 
@@ -27,10 +28,10 @@ export class Driller {
     this.sprite.setOrigin(0.5, 0.7);
 
     // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
-    // 목표: 기본 상태에서 드릴 폭 ≈ 64px (1 타일). 큰 PNG여도 자동 축소.
+    // 목표: 기본 상태에서 드릴 폭 ≈ 320px (5 타일). 큰 PNG여도 자동 축소.
     const srcImg = scene.textures.get(drillerKey).getSourceImage?.();
     const naturalW = (srcImg && srcImg.width) || 64;
-    this._baseScale = 64 / naturalW;
+    this._baseScale = 320 / naturalW;
     this.sprite.setScale(this._baseScale);
 
     this.container.add(this.sprite);
@@ -182,8 +183,9 @@ export class Driller {
 
   // 드릴 크기를 채굴 반경에 맞춰 확장.
   // baseScale (텍스처 크기 보정) × rangeMultiplier 로 최종 scale 계산.
+  // baseScale이 커진 만큼(5x) rangeMultiplier는 줄여서 13타일 채널 안에 머물게 함.
   _tweenScaleForRange(range) {
-    const mult = 1.0 + (range - 1) * 1.7;
+    const mult = 1.0 + (range - 1) * 0.55;
     const targetScale = (this._baseScale ?? 1.0) * mult;
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
@@ -244,6 +246,10 @@ export class Driller {
     const blocker = this.tileMap.getTileAt(currentTileX, nextTileY);
 
     if (blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
+      if (!this.isMining) {
+        // 채굴 시작 — drill_loop 시작
+        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.35 });
+      }
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;
 
@@ -267,6 +273,10 @@ export class Driller {
         }
       }
     } else {
+      if (this.isMining && this._drillLoop) {
+        this._drillLoop.stop();
+        this._drillLoop = null;
+      }
       this.isMining = false;
       this.y += this.speed * this.engineMult * dt;
       // 채굴 중이 아니면 남은 크랙 정리
@@ -339,9 +349,13 @@ export class Driller {
         if (ore) {
           totalGold += ore.value;
           gameState.addOre(ore.id);
+          this.soundManager?.playOreByRarity(ore.rarity);
         }
       }
     }
+
+    // 채굴 한 사이클당 흙 사운드 1회 (모든 타일마다 안 침 — throttle도 있지만 직접 단일화)
+    this.soundManager?.play('mine_dirt');
 
     if (totalGold > 0) gameState.addGold(totalGold);
   }

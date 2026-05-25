@@ -18,11 +18,26 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`boss-${id}-left`, `/assets/bosses/${id}-left.png`);
       this.load.image(`boss-${id}-right`, `/assets/bosses/${id}-right.png`);
     }
+    // 사운드는 manifest 기반으로 lazy load. /assets/audio/manifest.json에
+    // 등록된 키만 시도해서 404 noise 방지. (없으면 procedural fallback).
+    this.load.json('audioManifest', '/assets/audio/manifest.json');
+
     // 로드 실패는 조용히 무시 (procedural 폴백 동작)
     this.load.on('loaderror', () => {});
   }
 
   create() {
+    const manifest = this.cache.json.get('audioManifest');
+    if (manifest?.files && Array.isArray(manifest.files) && manifest.files.length > 0) {
+      // manifest에 등록된 사운드 파일만 추가 로딩 후 GameScene 시작
+      this.load.on('loaderror', () => {});
+      for (const { key, file } of manifest.files) {
+        if (key && file) this.load.audio(key, `/assets/audio/${file}`);
+      }
+      this.load.once('complete', () => this.scene.start('GameScene'));
+      this.load.start();
+      return;
+    }
     this.scene.start('GameScene');
   }
 }

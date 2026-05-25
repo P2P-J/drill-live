@@ -129,3 +129,33 @@ public/assets/audio/
 2. **Phase 3 중반**: 모든 트리거 SFX
 3. **Phase 4 (방송 세팅)**: BGM 6종 + 보스 SFX
 4. **추후 다듬기**: UI SFX, 디테일 사운드
+
+---
+
+## ✅ 현 구현 상태 (Phase 3)
+
+- `src/systems/SoundManager.js` — 중앙 디스패처. **procedural fallback + 파일 override** 둘 다 지원.
+  - mp3 파일이 `public/assets/audio/<key>.mp3`에 있으면 그걸 재생.
+  - 없으면 Web Audio API로 **합성**해서 즉시 소리 남. 라이브 가능 상태.
+  - `play(key, opts)` / `playLoop(key, opts)` / `stopLoop(key)` / `toggleMute()` / `setMasterVolume(v)` / `playOreByRarity(rarity)`
+  - 키별 throttle로 연발 방지 (drill_loop 같은 loop는 throttle 무관).
+- BootScene이 위 SFX_KEYS 전체에 대해 `load.audio` 시도 — 파일 없으면 silently 실패하고 procedural fallback.
+- 트리거 발동/폭발/채굴/광물 획득/업그레이드/sizzle 시점에 후크.
+- `;` 키로 mute 토글 ([test-commands.md](./test-commands.md)).
+- 실제 mp3 추가 시: `public/assets/audio/<key>.mp3`로 떨어뜨리면 자동 override됨.
+
+### 후크 포인트
+| 시점 | 호출부 | 사운드 키 |
+|---|---|---|
+| 채굴 사이클 1회 (반원 깨짐) | `Driller._mineSemicircle` | `mine_dirt` |
+| 광물 획득 | `Driller._mineSemicircle` | `ore_{rarity}` (rarity = ore.rarity) |
+| 채굴 중 (loop) | `Driller.update` | `drill_loop` (start/stop) |
+| 트리거 발동 (버프/광물/구독) | `TriggerSystem._triggerSound` | drill_up/turbo/overdrive/range_up/chat_fast/gold_rush/gem_drop/diamond_spawn/special_ore/sub_jingle/member_jingle/gift_sub |
+| TNT 착지 → sizzle 시작 | `ExplosionEffect.drop` | `tnt_sizzle` (duration 자동 적용) |
+| 폭발 순간 | `ExplosionEffect.drop` | bomb_small/ultra/mega/nuke (반경에 따라 자동 선택) |
+| 업그레이드 자동 구매 | `GameScene._autoBuyCheapest` | `upgrade_buy` |
+
+### 알려진 제약
+- **Autoplay 정책**: 페이지 로드 직후엔 브라우저가 AudioContext를 suspend 시킴. 첫 키 입력 / 클릭이 있어야 소리가 살아남. 라이브에선 OBS 'Interact'로 한 번 키 입력하면 됨.
+- 동일 키 너무 자주 호출 시 `THROTTLE_MS` 적용 — 같은 사운드가 너무 자주 겹치는 걸 방지.
+- BGM은 미구현 (실파일 도착 시 별도로).

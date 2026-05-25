@@ -12,6 +12,7 @@ import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
 import { BossTracker } from '../systems/BossTracker.js';
 import { ArenaSystem } from '../systems/ArenaSystem.js';
 import { CooldownManager } from '../systems/CooldownManager.js';
+import { SoundManager } from '../systems/SoundManager.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -26,6 +27,7 @@ export class GameScene extends Phaser.Scene {
     this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
     this.upgradeSystem = new UpgradeSystem(gameState);
     this.buffSystem = new BuffSystem(this);
+    this.soundManager = new SoundManager(this);
 
     // 게임 카메라는 위쪽 1400px만 사용. 하단은 UIScene이 차지.
     this.cameras.main.setViewport(0, 0, GAME.width, GAME.gameAreaHeight);
@@ -40,7 +42,7 @@ export class GameScene extends Phaser.Scene {
     this.tileMap.update(0);
 
     // 드릴러 생성
-    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem, this.buffSystem);
+    this.driller = new Driller(this, DRILLER_TILE_X, -GAME.tileSize / 2, this.tileMap, this.upgradeSystem, this.buffSystem, this.soundManager);
 
     // 채팅 트리거 전체 채널 쿨다운 관리
     this.cooldownManager = new CooldownManager(this);
@@ -53,6 +55,7 @@ export class GameScene extends Phaser.Scene {
       buffSystem: this.buffSystem,
       oreLayer: this.oreLayer,
       cooldownManager: this.cooldownManager,
+      soundManager: this.soundManager,
     });
 
     // 보스 아레나 + 추적기
@@ -146,6 +149,12 @@ export class GameScene extends Phaser.Scene {
     // 보스 디버그 키
     this.input.keyboard.on('keydown-B', () => this.bossTracker.forceSpawnNext());
     this.input.keyboard.on('keydown-N', () => this.bossTracker.activeBoss?.forceDefeat());
+
+    // 사운드 mute 토글
+    this.input.keyboard.on('keydown-SEMICOLON', () => {
+      const muted = this.soundManager.toggleMute();
+      console.log('Sound', muted ? 'muted' : 'unmuted');
+    });
   }
 
   update(_time, delta) {
@@ -184,7 +193,10 @@ export class GameScene extends Phaser.Scene {
         cheapestCost = cost;
       }
     }
-    if (cheapest) this.upgradeSystem.buy(cheapest);
+    if (cheapest) {
+      this.upgradeSystem.buy(cheapest);
+      this.soundManager?.play('upgrade_buy');
+    }
   }
 }
 

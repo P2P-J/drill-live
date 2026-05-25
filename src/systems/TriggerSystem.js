@@ -59,9 +59,23 @@ export class TriggerSystem {
     this.buffSystem = deps.buffSystem;
     this.oreLayer = deps.oreLayer;
 
-    this.explosionEffect = new ExplosionEffect(scene, this.tileMap);
+    this.soundManager = deps.soundManager;
+    this.explosionEffect = new ExplosionEffect(scene, this.tileMap, this.soundManager);
     this.cooldownManager = deps.cooldownManager;
     this._listeners = new Map();
+  }
+
+  // 트리거 ID → 발동 시점(=TNT 낙하 / 광물 스폰 / 버프 적용) 사운드 매핑.
+  // 폭탄/LIKE 폭발 사운드는 ExplosionEffect가 적절한 시점에 직접 재생.
+  _triggerSound(triggerId) {
+    const map = {
+      DRILL_UP: 'drill_up', TURBO: 'turbo', OVERDRIVE: 'overdrive',
+      RANGE_UP: 'range_up', FAST: 'chat_fast',
+      GOLD_RUSH: 'gold_rush', GEM_DROP: 'gem_drop', DIAMOND: 'diamond_spawn', SPECIAL: 'special_ore',
+      SUB: 'sub_jingle', MEMBER: 'member_jingle', GIFT_SUB: 'gift_sub',
+    };
+    const key = map[triggerId];
+    if (key) this.soundManager?.play(key);
   }
 
   fire(triggerId, donor = null) {
@@ -80,6 +94,9 @@ export class TriggerSystem {
 
     const event = { triggerId, def, donor };
     this._emit('fire', event);
+
+    // composite는 자식 트리거가 각자 사운드를 재생하므로 여기선 skip
+    if (def.type !== 'composite') this._triggerSound(triggerId);
 
     switch (def.type) {
       case 'bomb':       return this._handleBomb(def, donor);
@@ -112,6 +129,7 @@ export class TriggerSystem {
       shake: 0.01,
       sizzleDurationMs: def.sizzleDurationMs,
       names: [donor],
+      explosionSound: 'bomb_small',
     });
   }
 
@@ -123,12 +141,20 @@ export class TriggerSystem {
     const drillVisualBottomY = this.driller.y + 64 * drillScale;
     const targetY = boss ? boss.y : drillVisualBottomY;
 
+    // 반경에 따라 폭발 사운드 결정 (TNT 낙하 시 안 울리고, 폭발 순간 ExplosionEffect가 재생)
+    const explosionSound =
+      def.radius >= 5.0 ? 'nuke' :
+      def.radius >= 3.0 ? 'bomb_mega' :
+      def.radius >= 2.0 ? 'bomb_ultra' :
+      'bomb_small';
+
     this.explosionEffect.drop(targetX, targetY, {
       radius: def.radius,
       color: def.color,
       label: def.label,
       tntScale: def.tntScale,
       shake: def.shake ?? 0.012,
+      explosionSound,
     });
 
     // 보스에게 데미지 (PRD 4-3 BOSS BOMB / BOSS NUKE 비례 + 일반 폭탄도 데미지)
