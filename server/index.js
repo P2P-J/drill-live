@@ -105,15 +105,28 @@ app.post('/overlay', (req, res) => {
   res.json({ ok: true, delivered: clients.size, event });
 });
 
-// LIKE 배치 — { donors: [name, name, ...] } → 각 이름마다 LIKE 트리거 1개씩 broadcast
+// LIKE 배치 — 각 이름마다 LIKE 트리거 + overlay 둘 다 broadcast (overlay만 throttle).
 app.post('/like-batch', (req, res) => {
   const donors = Array.isArray(req.body?.donors) ? req.body.donors : [];
   if (donors.length === 0) return res.status(400).json({ error: 'donors[] required' });
-  for (const donor of donors) {
+  let overlayDelivered = 0;
+  for (const raw of donors) {
+    const donor = sanitizeName(raw);
+    if (!donor) continue;
     broadcast({ type: 'trigger', triggerId: 'LIKE', donor, at: Date.now() });
+    if (overlayThrottle.admitLike(donor)) {
+      broadcast({
+        type: 'overlay',
+        kind: 'LIKE',
+        name: donor,
+        amount: null, tier: null, text: null,
+        at: Date.now(),
+      });
+      overlayDelivered++;
+    }
   }
-  console.log(`[FIRE] LIKE × ${donors.length} → ${clients.size} clients`);
-  res.json({ ok: true, count: donors.length, delivered: clients.size });
+  console.log(`[FIRE] LIKE × ${donors.length} (overlay ${overlayDelivered}) → ${clients.size} clients`);
+  res.json({ ok: true, count: donors.length, overlayDelivered, delivered: clients.size });
 });
 
 app.get('/status', (_req, res) => {
