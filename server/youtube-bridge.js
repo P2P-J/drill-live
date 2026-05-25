@@ -89,10 +89,25 @@ function messageText(msg) {
   return msg.message?.map(m => m.text ?? m.emojiText ?? '').join('') ?? '';
 }
 
+// 누구나 쓸 수 있는 채팅 트리거
 const CHAT_COMMANDS = {
   '!fast': 'FAST',
-  // 추가 채팅 트리거 (!reset, !jackpot 등) 구현 시 여기 추가
 };
+// 스트리머/모더레이터만 쓸 수 있는 명령어 (spec 5-3 스트리머 전용)
+const STREAMER_COMMANDS = {
+  '!reset': 'RESET',
+  '!jackpot': 'JACKPOT',
+  '!boss_spawn': 'BOSS_SPAWN',
+  '!boss': null,  // 채팅 봇 응답용 (게임 효과 없음, 별도 처리 시 사용)
+};
+
+const STREAMER_CHANNEL_ID = process.env.STREAMER_CHANNEL_ID || null;
+
+function isStreamer(item) {
+  if (STREAMER_CHANNEL_ID) return item.author?.channelId === STREAMER_CHANNEL_ID;
+  // env 미설정 시 owner / moderator 둘 다 허용
+  return !!(item.isOwner || item.isModerator);
+}
 
 function chatCommandFromText(text) {
   const lower = String(text || '').toLowerCase().trim();
@@ -100,6 +115,14 @@ function chatCommandFromText(text) {
     if (lower.startsWith(cmd)) return id;
   }
   return null;
+}
+
+function streamerCommandFromText(text) {
+  const lower = String(text || '').toLowerCase().trim();
+  for (const [cmd, id] of Object.entries(STREAMER_COMMANDS)) {
+    if (lower.startsWith(cmd)) return id;  // null도 그대로 반환 — 호출부에서 분기
+  }
+  return undefined;
 }
 
 function buildId(input) {
@@ -141,7 +164,24 @@ chat.on('chat', (item) => {
     return;
   }
 
-  // 2) 채팅 명령어
+  // 2) 스트리머 전용 명령어 (owner/moderator만)
+  const streamerCmd = streamerCommandFromText(text);
+  if (streamerCmd !== undefined) {
+    if (!isStreamer(item)) {
+      console.log(`[YT] ${author} tried streamer cmd — denied`);
+      return;
+    }
+    if (streamerCmd === null) {
+      // !boss 같은 정보 명령어 — 게임 트리거 없음
+      console.log(`[YT] info command (no trigger) from streamer ${author}`);
+      return;
+    }
+    console.log(`[YT] STREAMER cmd "${streamerCmd}" from ${author}`);
+    postTrigger(streamerCmd, author);
+    return;
+  }
+
+  // 3) 일반 채팅 명령어
   const cmd = chatCommandFromText(text);
   if (cmd) {
     console.log(`[YT] chat command "${cmd}" from ${author}`);
@@ -149,7 +189,7 @@ chat.on('chat', (item) => {
     return;
   }
 
-  // 3) 일반 채팅은 로그만
+  // 4) 일반 채팅은 로그만
   // console.log(`[YT] chat: ${author}: ${text}`);
 });
 

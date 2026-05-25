@@ -144,6 +144,8 @@ export class GameScene extends Phaser.Scene {
       'M':     'MEMBER',       // 멤버 가입
       'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)
       'T':     'GIFT_SUB',     // $5+ 선물 구독 → NUKE + DIAMOND 동시
+      'F':     'JACKPOT',      // !jackpot — 전 레이어 다이아 파티 (스트리머)
+      'Z':     'RESET',        // !reset — 새 맵 생성 (스트리머)
     };
     for (const [key, triggerId] of Object.entries(KEY_TRIGGERS)) {
       this.input.keyboard.on(`keydown-${key}`, () => {

@@ -101,7 +101,14 @@ npm run yt -- @MyChannel
 
 **키워드 (메시지 안에 포함)**: `nuke`, `special`, `diamond`, `overdrive`, `range`, `gem`, `turbo`, `mega`, `gold`, `ultra`, `drill`, `bomb`. 단, 결제 금액 한도 안의 트리거만 허용 (시청자가 더 비싼 효과 강요 불가).
 
-**채팅 명령어**: `!fast` → FAST 트리거.
+**채팅 명령어**:
+- `!fast` → FAST 트리거 (누구나)
+
+**스트리머 전용** (owner/moderator만 — 환경변수 `STREAMER_CHANNEL_ID`로 특정 채널 ID 강제 가능):
+- `!reset` → RESET (새 맵 생성)
+- `!jackpot` → JACKPOT (다이아 파티)
+- `!boss_spawn` → BOSS_SPAWN (강제 보스 소환)
+- `!boss` → 봇 응답 정보 (게임 효과 없음, 향후 챗봇 응답 구현 시 사용)
 
 ### 알려진 제약
 - 좋아요(LIKE) 이벤트는 youtube-chat API에 없음. 채팅 명령어(`!like` 같은 별도 명령) 또는 YouTube Data API + OAuth 필요.

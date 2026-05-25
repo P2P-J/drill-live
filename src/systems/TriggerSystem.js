@@ -48,6 +48,11 @@ export const TRIGGER_DEFS = {
 
   // 선물 구독 ($5+) — NUKE + DIAMOND 동시 발동 (spec 5-3)
   GIFT_SUB:   { type: 'composite', triggers: ['NUKE', 'DIAMOND'], priceLabel: 'GIFT', label: 'GIFT SUB!', color: 0xFFD54F },
+
+  // 스트리머 전용 (spec 5-3) — youtube-bridge에서 owner/moderator만 발동 가능
+  RESET:      { type: 'special', action: 'reset',     priceLabel: '!reset',      label: 'NEW MAP!',  color: 0xFFFFFF },
+  JACKPOT:    { type: 'special', action: 'jackpot',   priceLabel: '!jackpot',    label: 'JACKPOT!',  color: 0xFFD700 },
+  BOSS_SPAWN: { type: 'special', action: 'bossSpawn', priceLabel: '!boss_spawn', label: 'BOSS!',     color: 0xF44336 },
 };
 
 export class TriggerSystem {
@@ -104,7 +109,67 @@ export class TriggerSystem {
       case 'oreSpawn':   return this._handleOreSpawn(def);
       case 'like':       return this._handleLike(def, donor);
       case 'composite':  return this._handleComposite(def, donor);
+      case 'special':    return this._handleSpecial(def, donor);
     }
+  }
+
+  _handleSpecial(def, donor) {
+    switch (def.action) {
+      case 'reset':     return this._doReset();
+      case 'jackpot':   return this._doJackpot();
+      case 'bossSpawn': return this._doBossSpawn();
+    }
+  }
+
+  // 새 맵 생성 — 모든 청크 destroy 후 재생성. 드릴 위치/골드/광물 인벤은 유지.
+  _doReset() {
+    // 진행 중인 폭탄/sizzle 정리 (재생성된 타일에 잘못된 폭발 안 가게)
+    if (this.explosionEffect?._bodies) {
+      for (const body of [...this.explosionEffect._bodies]) {
+        body.tnt?.destroy();
+        body.labelText?.destroy();
+        body.namesText?.destroy();
+        if (body.sizzleHandles) for (const h of body.sizzleHandles) h.stop?.();
+      }
+      this.explosionEffect._bodies = [];
+    }
+    // 청크 전체 destroy
+    const cys = [...this.tileMap.chunks.keys()];
+    for (const cy of cys) this.tileMap.destroyChunk(cy);
+    // 드릴 주변 청크 재생성
+    this.tileMap.update(this.driller.y);
+    // 화면 플래시 + 카메라 흔들림
+    const cam = this.scene.cameras.main;
+    cam.flash(500, 255, 255, 255);
+    cam.shake(300, 0.012);
+  }
+
+  // 잭팟 — 현재 청크 + 인접 청크의 빈 흙 타일들을 무작위로 다이아몬드로 변환
+  _doJackpot() {
+    const diamondOre = ORES.diamond;
+    if (!diamondOre) return;
+    const visibleTiles = [];
+    for (const chunk of this.tileMap.chunks.values()) {
+      for (const tile of chunk.tiles.values()) {
+        if (!tile.destroyed && !tile.isWall) visibleTiles.push(tile);
+      }
+    }
+    // 무작위 셔플 + 상위 N개만 변환
+    for (let i = visibleTiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [visibleTiles[i], visibleTiles[j]] = [visibleTiles[j], visibleTiles[i]];
+    }
+    const targetCount = Math.min(80, Math.floor(visibleTiles.length * 0.4));
+    for (let i = 0; i < targetCount; i++) {
+      const tile = visibleTiles[i];
+      this.tileMap.convertToOre(tile.tileX, tile.tileY, diamondOre);
+    }
+    // 사운드 + 화면 효과
+    this.scene.cameras.main.flash(300, 255, 215, 0);  // 금색 플래시
+  }
+
+  _doBossSpawn() {
+    this.bossTracker?.forceSpawnNext();
   }
 
   // 여러 트리거를 묶어서 동시 발동 (예: GIFT_SUB = NUKE + DIAMOND)
