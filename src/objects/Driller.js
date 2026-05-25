@@ -204,7 +204,8 @@ export class Driller {
 
   update(delta) {
     this._syncUpgrades();
-    const dt = delta / 1000;
+    // dt cap: FPS가 20fps 아래로 떨어져도 한 프레임 물리가 폭주하지 않도록 50ms 상한.
+    const dt = Math.min(0.05, delta / 1000);
 
     if (this.arenaMode) {
       this._updateArena(dt);
@@ -293,10 +294,25 @@ export class Driller {
         this._drillLoop = null;
       }
       this.isMining = false;
-      // 자유낙하 — 중력 가속 (1 tile = 1m 스케일).
-      // engineMult는 가속 자체의 배수로 작용 (엔진이 좋으면 더 빠르게 끌어내림).
+      // 자유낙하 — 중력 가속 + sub-step 충돌 검사.
+      // FPS 저하나 vy가 클 때 한 프레임에 1 타일 이상 점프해서 중간 타일 충돌 검사를 놓치는 버그 방지.
       this.vy = Math.min(MAX_FALL_SPEED, this.vy + GRAVITY_PX_S2 * this.engineMult * dt);
-      this.y += this.vy * dt;
+      let remaining = this.vy * dt;
+      const T = this.tileSize;
+      const subStep = T * 0.5;  // 32px 단위로 충돌 검사
+      while (remaining > 0) {
+        const step = Math.min(remaining, subStep);
+        const probeTileY = Math.floor((this.y + step + epsilon) / T);
+        const probeTile = this.tileMap.getTileAt(currentTileX, probeTileY);
+        if (probeTile && !probeTile.destroyed && !probeTile.isWall && probeTileY >= 0) {
+          // 솔리드 타일 도달 — 타일 윗변에 스냅, 다음 프레임에 mining 시작
+          this.y = probeTileY * T;
+          this.vy = 0;
+          break;
+        }
+        this.y += step;
+        remaining -= step;
+      }
       // 채굴 중이 아니면 남은 크랙 정리
       if (this._crackedTiles && this._crackedTiles.length > 0) {
         for (const t of this._crackedTiles) {
