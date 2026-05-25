@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "node server/index.js",
     "fire": "node server/fire.js",
+    "yt": "node server/youtube-bridge.js",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

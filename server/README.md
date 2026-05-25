@@ -68,11 +68,47 @@ curl -X POST http://localhost:8080/like-batch \
 
 자세한 효과는 [docs/test-commands.md](../docs/test-commands.md) 참조.
 
-## 다음 단계 (Phase 4-B)
+## Phase 4-B: YouTube 라이브 실연결
 
-`server/youtube-bridge.js` 같은 모듈을 추가해서:
-1. `youtube-chat` 라이브러리로 라이브 채팅 폴링 (또는 Streamer.bot WS 구독)
-2. 채팅 메시지 / 슈퍼챗 / 구독 이벤트 파싱
-3. 적절한 triggerId로 변환 후 `/trigger`에 POST
+`server/youtube-bridge.js`가 `youtube-chat` 라이브러리로 채팅/슈퍼챗을 폴링해서 자동으로 `/trigger`에 POST한다.
 
-이렇게 하면 현재 게임 코드 변경 없이 실제 YouTube와 연동.
+### 실행
+```bash
+# 세 개 터미널 동시:
+npm run server                          # 1) 트리거 브리지 (8080)
+npm run dev                             # 2) 게임 (3000)
+npm run yt <liveVideoId>                # 3) YouTube 연결
+# 또는 URL 통째로:
+npm run yt -- "https://www.youtube.com/watch?v=ABC123"
+# 또는 @handle / UC 채널 ID:
+npm run yt -- @MyChannel
+```
+
+### 트리거 매핑
+**슈퍼챗 금액 (USD)** → 기본 트리거 (메시지에 키워드 있으면 키워드 우선, 금액 한도 안에서만):
+
+| USD 범위 | 기본 트리거 |
+|---|---|
+| ≥ $20 | NUKE |
+| $15 ~ $19 | SPECIAL |
+| $10 ~ $14 | DIAMOND |
+| $5 ~ $9 | MEGA_BLAST |
+| $3 ~ $4 | GOLD_RUSH |
+| $2 | DRILL_UP |
+| $1 | BOMB |
+
+원/엔도 자동 환산 (USD ~1300:1, ~150:1 단순 환산).
+
+**키워드 (메시지 안에 포함)**: `nuke`, `special`, `diamond`, `overdrive`, `range`, `gem`, `turbo`, `mega`, `gold`, `ultra`, `drill`, `bomb`. 단, 결제 금액 한도 안의 트리거만 허용 (시청자가 더 비싼 효과 강요 불가).
+
+**채팅 명령어**: `!fast` → FAST 트리거.
+
+### 알려진 제약
+- 좋아요(LIKE) 이벤트는 youtube-chat API에 없음. 채팅 명령어(`!like` 같은 별도 명령) 또는 YouTube Data API + OAuth 필요.
+- 신규 구독 / 멤버 가입 이벤트 정확히 받기는 youtube-chat의 시스템 메시지 파싱이 불안정. 정식 연동은 YouTube Live Streaming API 필요.
+- 슈퍼챗 / 채팅 명령어는 정상 작동.
+
+### 환경변수
+- `BRIDGE_URL` — 트리거 브리지 URL (기본 `http://localhost:8080`)
+- `YOUTUBE_LIVE_ID` — CLI 인자 대신 사용
+- `YT_POLL_MS` — 채팅 폴링 간격 ms (기본 4000)
