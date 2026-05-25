@@ -3,7 +3,6 @@ import { GAME } from '../config/game.js';
 import { ORES, ORE_IDS } from '../config/ores.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
-import { BOSSES } from '../config/bosses.js';
 
 const INVENTORY_X = 6;
 const INVENTORY_W = 96;
@@ -22,7 +21,6 @@ export class UIScene extends Phaser.Scene {
     this.biomeManager = data.biomeManager;
     this.buffSystem = data.buffSystem;
     this.triggerSystem = data.triggerSystem;
-    this.bossTracker = data.bossTracker;
     this.eventLines = [];
     this.buffIndicators = new Map();
   }
@@ -34,7 +32,6 @@ export class UIScene extends Phaser.Scene {
     this._buildStatsPanel();
     this._buildBuffArea();
     this._buildAnnouncement();
-    this._buildBossHud();
     this._wireEvents();
     this._refreshStats();
   }
@@ -101,40 +98,6 @@ export class UIScene extends Phaser.Scene {
     this.statSpeedValue.setText(`×${effective.toFixed(1)}`);
     // 버프 활성 시 빨간 강조
     this.statSpeedValue.setColor(buffMult > 1.001 ? '#FF5252' : '#FFEB3B');
-  }
-
-  _buildBossHud() {
-    // 상단 HUD 아래에 보스 정보 (HP 바 + 이름 + 잔여 시간)
-    this.bossPanel = this.add.container(GAME.width / 2, 130);
-    this.bossPanel.setDepth(95);
-    this.bossPanel.setVisible(false);
-
-    // 배경
-    const bg = this.add.rectangle(0, 0, 880, 90, 0x000000, 0.75).setOrigin(0.5, 0)
-      .setStrokeStyle(3, 0xF44336);
-
-    this.bossNameText = this.add.text(0, 8, '', {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '34px',
-      color: '#FF5252',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5, 0);
-
-    // HP 바 배경
-    const hpBg = this.add.rectangle(0, 50, 820, 22, 0x222222).setOrigin(0.5, 0)
-      .setStrokeStyle(2, 0xffffff);
-    // HP 바 채움
-    this.bossHpFill = this.add.rectangle(-410, 51, 818, 20, 0xF44336).setOrigin(0, 0);
-
-    // 잔여 시간
-    this.bossTimeText = this.add.text(410, 7, '', {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '24px',
-      color: '#FFEB3B',
-    }).setOrigin(1, 0);
-
-    this.bossPanel.add([bg, this.bossNameText, hpBg, this.bossHpFill, this.bossTimeText]);
   }
 
   _buildAnnouncement() {
@@ -206,17 +169,6 @@ export class UIScene extends Phaser.Scene {
       ind.timeText.setText(`${remainS}s`);
       const frac = this.buffSystem.remainingFrac(id);
       ind.bar.scaleX = frac;
-    }
-
-    // 보스 HP 바 + 시간 갱신
-    const boss = this.bossTracker?.activeBoss;
-    if (boss && boss.alive) {
-      this.bossPanel.setVisible(true);
-      this.bossHpFill.scaleX = Math.max(0, boss.hpRatio());
-      const sec = Math.ceil(boss.remainingMs() / 1000);
-      this.bossTimeText.setText(`${sec}s`);
-    } else if (this.bossPanel.visible) {
-      this.bossPanel.setVisible(false);
     }
   }
 
@@ -313,7 +265,7 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
-  // ── 하단 바: 이벤트 피드 (좌) + Next Boss (우) ──
+  // ── 하단 바: 이벤트 피드 (좌) ──
   _buildBottomBar() {
     this.add.rectangle(0, BOTTOM_BAR_Y, GAME.width, BOTTOM_BAR_H, 0x000000, 0.6).setOrigin(0, 0);
     this.add.rectangle(0, BOTTOM_BAR_Y, GAME.width, 3, 0xFFD700).setOrigin(0, 0);
@@ -329,18 +281,6 @@ export class UIScene extends Phaser.Scene {
       fontSize: '20px',
       color: '#bbbbbb',
     });
-
-    // 우측: 다음 보스 정보
-    this.nextBossText = this.add.text(GAME.width - 20, BOTTOM_BAR_Y + 14, '', {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '24px',
-      color: '#FF5252',
-    }).setOrigin(1, 0);
-    this.bossDistanceText = this.add.text(GAME.width - 20, BOTTOM_BAR_Y + 50, '', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '20px',
-      color: '#FFAB91',
-    }).setOrigin(1, 0);
   }
 
   // ── 이벤트 피드 ──
@@ -356,25 +296,12 @@ export class UIScene extends Phaser.Scene {
     this.eventText2.setText(first?.sub ?? second?.title ?? '');
   }
 
-  _updateNextBoss(km) {
-    const next = BOSSES.find(b => b.depthM > km);
-    if (!next) {
-      this.nextBossText.setText('All bosses cleared');
-      this.bossDistanceText.setText('');
-      return;
-    }
-    const dist = next.depthM - km;
-    this.nextBossText.setText(`Next: ${next.name}`);
-    this.bossDistanceText.setText(`${dist.toFixed(0)} km away`);
-  }
-
   _wireEvents() {
     gameState.on('depth', (km) => {
       this.depthText.setText(`Depth: ${km.toFixed(0)} km`);
       const layer = this.biomeManager.getLayerAt(Math.max(0, km));
       const short = layer.name.split(' ')[0];
       this.biomeText.setText(`${layer.biomeName} - Layer ${short}`);
-      this._updateNextBoss(km);
     });
 
     gameState.on('gold', (g) => {
@@ -410,27 +337,6 @@ export class UIScene extends Phaser.Scene {
     }
 
     // 보스 이벤트 — 경고 / 등장 / 처치 / 실패
-    if (this.bossTracker) {
-      this.bossTracker.on('warning', ({ boss, step, remaining }) => {
-        const colorHex = '#' + step.color.toString(16).padStart(6, '0');
-        this.showAnnouncement(step.label, `${boss.name} in ${Math.ceil(remaining)}m`, colorHex);
-      });
-      this.bossTracker.on('spawn', ({ boss }) => {
-        this.bossNameText.setText(`⚠ ${boss.def.name} ⚠`);
-        this.bossHpFill.scaleX = 1;
-        this.bossPanel.setVisible(true);
-        this.showAnnouncement('BOSS APPEARED!', boss.def.name, '#FF1744');
-      });
-      this.bossTracker.on('defeated', ({ boss }) => {
-        this.showAnnouncement('VICTORY!', `${boss.def.name} defeated`, '#FFEB3B');
-        this._pushEvent(`${boss.def.name} DEFEATED!`, `+${boss.def.rewardCount} ${boss.def.rewardOre}`);
-      });
-      this.bossTracker.on('failed', ({ boss }) => {
-        this.showAnnouncement('FAILED', `${boss.def.name} escaped...`, '#777777');
-        this._pushEvent(`${boss.def.name} escaped`, 'drill speed -50% 30s');
-      });
-    }
-
     gameState.on('ore', ({ oreId, total }) => {
       const item = this.inventoryItems[oreId];
       if (!item) return;

@@ -370,7 +370,7 @@ export class ExplosionEffect {
 
   _applyKnockbackToDriller(centerX, centerY, radiusPx) {
     const drill = this.driller;
-    if (!drill || drill.arenaMode) return;  // 아레나 모드에선 자체 핀볼 물리 — 간섭 X
+    if (!drill) return;
     const dx = drill.worldX - centerX;
     const dy = drill.y - centerY;
     const dist = Math.sqrt(dx * dx + dy * dy);

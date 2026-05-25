@@ -9,8 +9,6 @@ import { UpgradeSystem } from '../systems/UpgradeSystem.js';
 import { UPGRADE_ORDER } from '../config/upgrades.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
 import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
-import { BossTracker } from '../systems/BossTracker.js';
-import { ArenaSystem } from '../systems/ArenaSystem.js';
 import { CooldownManager } from '../systems/CooldownManager.js';
 import { SoundManager } from '../systems/SoundManager.js';
 import { RemoteTrigger } from '../systems/RemoteTrigger.js';
@@ -59,16 +57,6 @@ export class GameScene extends Phaser.Scene {
       soundManager: this.soundManager,
     });
 
-    // 보스 아레나 + 추적기
-    this.arenaSystem = new ArenaSystem(this, this.tileMap, this.driller);
-    this.bossTracker = new BossTracker(this, {
-      driller: this.driller,
-      tileMap: this.tileMap,
-      buffSystem: this.buffSystem,
-      arenaSystem: this.arenaSystem,
-    });
-    this.triggerSystem.bossTracker = this.bossTracker;
-
     // 외부 트리거 브리지 — 서버가 실행 중이면 자동 연결, 아니면 silently retry.
     this.remoteTrigger = new RemoteTrigger(this.triggerSystem);
     this.remoteTrigger.connect();
@@ -85,7 +73,6 @@ export class GameScene extends Phaser.Scene {
       biomeManager: this.biomeManager,
       buffSystem: this.buffSystem,
       triggerSystem: this.triggerSystem,
-      bossTracker: this.bossTracker,
     });
 
     this._setupDebugKeys();
@@ -151,10 +138,6 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // 보스 디버그 키
-    this.input.keyboard.on('keydown-B', () => this.bossTracker.forceSpawnNext());
-    this.input.keyboard.on('keydown-N', () => this.bossTracker.activeBoss?.forceDefeat());
-
     // 사운드 mute 토글
     this.input.keyboard.on('keydown-SEMICOLON', () => {
       const muted = this.soundManager.toggleMute();
@@ -170,7 +153,6 @@ export class GameScene extends Phaser.Scene {
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);
-    this.bossTracker.update(km, delta);
 
     // 배경 색상: 1km 단위로만 갱신 (매 프레임 lerpColor + setFillStyle 부담 제거)
     const kmRounded = Math.max(0, Math.floor(km));
@@ -199,10 +181,7 @@ export class GameScene extends Phaser.Scene {
         cheapestCost = cost;
       }
     }
-    if (cheapest) {
-      this.upgradeSystem.buy(cheapest);
-      this.soundManager?.play('upgrade_buy');
-    }
+    if (cheapest) this.upgradeSystem.buy(cheapest);
   }
 }
 

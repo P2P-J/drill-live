@@ -21,7 +21,7 @@ const VALID_TRIGGER_IDS = new Set([
   'GOLD_RUSH', 'GEM_DROP', 'DIAMOND', 'SPECIAL',
   'RANGE_UP', 'FAST',
   'SUB',
-  'RESET', 'JACKPOT', 'BOSS_SPAWN',  // 스트리머 전용
+  'RESET', 'JACKPOT',  // 스트리머 전용
 ]);
 
 const app = express();

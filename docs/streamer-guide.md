@@ -37,7 +37,6 @@
 |---|---|---|---|
 | `F` | JACKPOT | `!jackpot` | 화면 흙 타일 40%를 **다이아몬드로 변환** + 금색 플래시 |
 | `Z` | RESET | `!reset` | **새 맵 생성** (드릴 위치·골드·인벤은 유지) |
-| `B` | BOSS_SPAWN | `!boss_spawn` | 다음 보스 강제 소환 |
 
 ### 🛠️ 개발/디버그
 
@@ -78,8 +77,7 @@
 
 ### 💬 채팅 명령어
 - `!fast` (누구나) — 드릴 ×1.5 / 10초. 채널 전체 30초 쿨다운.
-- `!reset` / `!jackpot` / `!boss_spawn` (스트리머·모더레이터만)
-- `!boss` — 봇 응답용 (향후 챗봇 구현 시)
+- `!reset` / `!jackpot` (스트리머·모더레이터만)
 
 ### 👤 신규 구독 (SUB)
 - **드릴 바로 아래 10줄(채굴 영역 11타일 폭) 전체를 현재 바이옴 특수 광물로 가득 채움**
@@ -185,23 +183,19 @@ curl -X POST http://localhost:8080/trigger \
 - **폭탄 물리**: 중력 + 스택 + 지지대 사라지면 재낙하 + 도화선 잔여시간 보존
 - **트리거 17종**: 후원 11개 + 채팅 1개 + 좋아요 1개 + 구독 2개 + 선물 구독 1개 + 스트리머 3개
 - **자동 업그레이드**: 0.4초마다 가장 저렴한 항목 1개 구매
-- **사운드 시스템**: Web Audio API procedural 합성 (mp3 파일 없이도 작동) + 매니페스트 기반 파일 override
-- **보스 시스템**: 5종 정의됨, megaMole PNG 적용 (나머지 procedural), 깊이 기반 자동 등장
+- **사운드 시스템**: Web Audio API procedural 합성 (mp3 파일 없이도 작동) + 매니페스트 기반 파일 override + drillsound.mp3 채굴 사운드
 - **WebSocket 브리지**: HTTP/curl/CLI 테스트 가능 + YouTube Live 실연동 (youtube-chat 라이브러리)
+- **보스 시스템 제거됨** — 단순 무한 굴착 게임으로 단순화
 
 ### 🚧 남은 작업
 1. **YouTube 통합 보완** — 신규 구독·멤버 가입 이벤트는 youtube-chat API 한계로 별도 처리 필요 (정식 YouTube Live Streaming API + OAuth)
-2. **보스 깊이 재설계** — 5종 모두 단일 10시간 라이브에서 도달 가능하게 (현재: 보스 4·5는 도달 불가)
-3. **나머지 보스 4종 PNG** (crystalGolem, abyssKraken, ancientTreant, magmaDragon)
-4. **광고/리워드 시청 무료 트리거** (spec 5-3)
-5. **BOSS_BOMB / BOSS_NUKE 분리** (현재 일반 BOMB이 보스 데미지도 같이 처리)
-6. **깊이 마일스톤 축하** (1000km, 10000km 등 도달 시 화면 알림)
-7. **누적 통계 표시** (총 후원 수, 총 광물 수)
-8. **BGM 6종** (바이옴별)
+2. **광고/리워드 시청 무료 트리거** (spec 5-3)
+3. **깊이 마일스톤 축하** (1000km, 10000km 등 도달 시 화면 알림)
+4. **누적 통계 표시** (총 후원 수, 총 광물 수)
+5. **BGM 6종** (바이옴별)
 
 ### ⚠️ 알려진 제약
 - 페이지 로드 직후 첫 키 입력 전엔 AudioContext가 suspend 상태 → 소리 안 남. OBS에서 'Interact'로 한 번 키 입력하면 됨.
-- 보스 4·5(Ancient Treant 450,000km, Magma Dragon 950,000km)는 단일 10시간 라이브 내 도달 불가. 다회차 라이브 / 깊이 재설계 필요.
 - LIKE 이벤트는 youtube-chat API가 못 받음. 게임 내에선 작동하지만 실 YouTube 좋아요 자동 연결은 별도 처리 필요.
 
 ---

@@ -47,9 +47,8 @@ export const TRIGGER_DEFS = {
   SUB:        { type: 'special', action: 'subscribe', priceLabel: 'SUB', label: 'NEW SUB!', color: 0xF06292 },
 
   // 스트리머 전용 (spec 5-3) — youtube-bridge에서 owner/moderator만 발동 가능
-  RESET:      { type: 'special', action: 'reset',     priceLabel: '!reset',      label: 'NEW MAP!',  color: 0xFFFFFF },
-  JACKPOT:    { type: 'special', action: 'jackpot',   priceLabel: '!jackpot',    label: 'JACKPOT!',  color: 0xFFD700 },
-  BOSS_SPAWN: { type: 'special', action: 'bossSpawn', priceLabel: '!boss_spawn', label: 'BOSS!',     color: 0xF44336 },
+  RESET:      { type: 'special', action: 'reset',   priceLabel: '!reset',   label: 'NEW MAP!', color: 0xFFFFFF },
+  JACKPOT:    { type: 'special', action: 'jackpot', priceLabel: '!jackpot', label: 'JACKPOT!', color: 0xFFD700 },
 };
 
 export class TriggerSystem {
@@ -114,7 +113,6 @@ export class TriggerSystem {
     switch (def.action) {
       case 'reset':     return this._doReset();
       case 'jackpot':   return this._doJackpot();
-      case 'bossSpawn': return this._doBossSpawn();
       case 'subscribe': return this._doSubscribe(donor);
     }
   }
@@ -185,11 +183,7 @@ export class TriggerSystem {
     this.scene.cameras.main.flash(300, 255, 215, 0);  // 금색 플래시
   }
 
-  _doBossSpawn() {
-    this.bossTracker?.forceSpawnNext();
-  }
-
-  // 여러 트리거를 묶어서 동시 발동 (예: GIFT_SUB = NUKE + DIAMOND)
+  // 여러 트리거를 묶어서 동시 발동
   _handleComposite(def, donor) {
     for (const childId of def.triggers) this.fire(childId, donor);
   }
@@ -216,12 +210,9 @@ export class TriggerSystem {
   }
 
   _handleBomb(def) {
-    // 보스 활성 중이면 보스가 타겟. 아니면 드릴 아래에.
-    const boss = this.bossTracker?.activeBoss;
     const drillScale = this.driller.sprite?.scaleY ?? 1.0;
-    const targetX = boss ? boss.x : this.driller.worldX;
-    const drillVisualBottomY = this.driller.y + 64 * drillScale;
-    const targetY = boss ? boss.y : drillVisualBottomY;
+    const targetX = this.driller.worldX;
+    const targetY = this.driller.y + 64 * drillScale;
 
     // 반경에 따라 폭발 사운드 결정 (TNT 낙하 시 안 울리고, 폭발 순간 ExplosionEffect가 재생)
     const explosionSound =
@@ -238,16 +229,6 @@ export class TriggerSystem {
       shake: def.shake ?? 0.012,
       explosionSound,
     });
-
-    // 보스에게 데미지 (PRD 4-3 BOSS BOMB / BOSS NUKE 비례 + 일반 폭탄도 데미지)
-    if (boss) {
-      const damageMap = {
-        BOMB: 100, ULTRA_BOMB: 300, MEGA_BLAST: 600, NUKE: 2500,
-      };
-      const dmg = damageMap[Object.keys(TRIGGER_DEFS).find(k => TRIGGER_DEFS[k] === def)] ?? 100;
-      // 폭발 직후 (낙하 + sizzle = ~1.6초 후) 데미지 적용
-      this.scene.time.delayedCall(1600, () => boss.takeDamage(dmg));
-    }
   }
 
   _handleBuff(def) {

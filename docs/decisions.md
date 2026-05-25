@@ -43,12 +43,13 @@
 - 결정: spec 준수. `GameScene._autoBuyCheapest()`가 `UPGRADE_ORDER`에서 비용이 가장 낮은 구매 가능 항목을 골라 즉시 구매.
 - 이유: 게임은 시청자 후원/명령어로만 영향을 받는 자동 진행 시뮬레이션이므로, 업그레이드도 자동화되어야 시청자 시점에서 "성장하고 있다"가 보임.
 
-## 5. 보스 — **PNG 자산 준비될 때까지 일시 비활성화**
+## 5. 보스 — **완전 제거** (spec 5-3 5종 보스 + 아레나 + 핀볼 물리)
 
-- spec: 5종 보스 + 아레나 + 핀볼 물리.
-- 현재: `BossTracker.update()`와 B/N 디버그 키를 주석 처리. `BossTracker`/`ArenaSystem` 자체는 보존.
-- 이유: 사용자가 보스 디자인은 PNG로 직접 제공하기로 결정. 임시 procedural 그림은 "그림판 같다"는 피드백을 받음.
-- 재활성화 시점: `public/assets/bosses/{id}.png`가 모두 채워지면 `GameScene.update`의 주석 한 줄과 키 핸들러 두 줄을 해제하면 됨.
+- spec: 5종 보스 (Mega Mole, Crystal Golem, Abyss Kraken, Ancient Treant, Magma Dragon) 깊이별 자동 등장 + 아레나 + 핀볼 물리.
+- 결정: **완전 제거**. 단순 무한 굴착 게임으로 단순화.
+- 이유: 시청자 시점에서 보스전 = 게임 흐름 끊김. 라이브 진행 페이스를 보스 없이 자연스러운 깊이 강하 + 후원 인터랙션만으로도 충분히 채울 수 있다고 판단.
+- 제거된 코드/자산: `src/objects/Boss.js`, `BossArt.js`, `systems/BossTracker.js`, `ArenaSystem.js`, `config/bosses.js`, `public/assets/bosses/*`, `docs/boss-design-spec.md`. UIScene 보스 패널, TriggerSystem BOSS_SPAWN/보스 데미지 로직, Driller 아레나 모드, server BOSS_SPAWN 트리거 모두 제거.
+- 추후 추가하려면 spec.md 3-3 / 5-3 보스 섹션 + 본 코드 변경 이력 참고.
 
 ## 6. 좋아요(LIKE) 트리거 — **TNT 합산 + 3초 sizzle**
 

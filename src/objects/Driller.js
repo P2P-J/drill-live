@@ -61,26 +61,7 @@ export class Driller {
     // 채굴 범위 전체에 크랙 표시 — 트래킹
     this._crackedTiles = [];
     this._lastCrackStage = 0;
-    // 보스 아레나 모드 — 핀볼 같은 물리로 전환
-    this.arenaMode = false;
-    this.arenaBounds = null;
     this.vy = 0;
-  }
-
-  enterArena(bounds) {
-    this.arenaMode = true;
-    this.arenaBounds = bounds;
-    // 핀볼 시작 속도 — 강한 좌우 + 위쪽 약간
-    this.vx = (Math.random() < 0.5 ? -1 : 1) * 280;
-    this.vy = -150;
-  }
-
-  exitArena() {
-    this.arenaMode = false;
-    this.arenaBounds = null;
-    this.vy = 0;
-    // 평소 좌우 드리프트 복원
-    this.vx = GAME.bounceSpeed * (Math.random() < 0.5 ? -1 : 1);
   }
 
   _syncUpgrades() {
@@ -94,12 +75,6 @@ export class Driller {
       if (powerBuff) {
         drillSpeedMult *= powerBuff.params.mult;
         engineMult *= powerBuff.params.mult;
-      }
-      // 페널티 디버프 (보스 실패 시) — 속도 감소
-      const penalty = this.buffSystem.get('penalty');
-      if (penalty) {
-        drillSpeedMult *= penalty.params.mult;
-        engineMult *= penalty.params.mult;
       }
     }
 
@@ -142,52 +117,6 @@ export class Driller {
     return Math.floor((this.worldX - this.xOffset) / this.tileSize);
   }
 
-  // 아레나 핀볼 물리 — 좌/우/위/아래 모두 반사. 중력 적용.
-  _updateArena(dt) {
-    const b = this.arenaBounds;
-    // 중력
-    this.vy += 900 * dt;
-    // 최대 속도 제한
-    this.vx = Math.max(-450, Math.min(450, this.vx));
-    this.vy = Math.max(-700, Math.min(700, this.vy));
-
-    let newX = this.worldX + this.vx * dt;
-    let newY = this.y + this.vy * dt;
-
-    if (newX <= b.left) {
-      newX = b.left;
-      this.vx = Math.abs(this.vx) * 0.95;
-      this._spawnBounceParticles(newX, newY, -1);
-      this._squashBounce();
-    } else if (newX >= b.right) {
-      newX = b.right;
-      this.vx = -Math.abs(this.vx) * 0.95;
-      this._spawnBounceParticles(newX, newY, +1);
-      this._squashBounce();
-    }
-    if (newY <= b.top) {
-      newY = b.top;
-      this.vy = Math.abs(this.vy) * 0.85;
-      this._spawnBounceParticles(newX, newY, 0);
-      this._squashBounce();
-    } else if (newY >= b.bottom) {
-      newY = b.bottom;
-      // 바닥 충돌 — 항상 위로 튀게 강한 반발
-      this.vy = -Math.max(280, Math.abs(this.vy) * 0.85);
-      this._spawnBounceParticles(newX, newY, 0);
-      this._squashBounce();
-    }
-
-    this.worldX = newX;
-    this.y = newY;
-    this.container.x = newX;
-    this.container.y = newY;
-    // 회전·sprite 진동 없음 (혼란스러움)
-    this.container.rotation = 0;
-    this.sprite.x = 0;
-    this.isMining = false;
-  }
-
   // 드릴 크기를 채굴 반경에 맞춰 확장.
   // baseScale (텍스처 크기 보정) × rangeMultiplier 로 최종 scale 계산.
   // baseScale이 커진 만큼(5x) rangeMultiplier는 줄여서 13타일 채널 안에 머물게 함.
@@ -208,11 +137,6 @@ export class Driller {
     this._syncUpgrades();
     // dt cap: FPS가 20fps 아래로 떨어져도 한 프레임 물리가 폭주하지 않도록 50ms 상한.
     const dt = Math.min(0.05, delta / 1000);
-
-    if (this.arenaMode) {
-      this._updateArena(dt);
-      return;
-    }
 
     // 주기적 랜덤 vx 임펄스 — 벽 안 부딫쳐도 방향/속도가 불규칙하게 변함
     const now = this.scene.time.now;
@@ -270,13 +194,8 @@ export class Driller {
 
     if (!inKnockback && blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
       if (!this.isMining) {
-        // 채굴 시작 — drill_loop 시작. mp3 기본 +5dB (≈ volume 0.62), rate는 drillSpeedMult.
-        this._drillLoop = this.soundManager?.playLoop('drill_loop', {
-          volume: 0.62, rate: this.drillSpeedMult ?? 1.0,
-        });
-      } else if (this._drillLoop?.setRate) {
-        // 채굴 중 속도 변화(버프/업그레이드) 즉시 반영 — 사운드 배속도 같이 변동
-        this._drillLoop.setRate(this.drillSpeedMult ?? 1.0);
+        // 채굴 시작 — drill_loop 시작. mp3 기본 +5dB (≈ volume 0.62). 배속/피치 변경 없이 정사운드.
+        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.62 });
       }
       this.isMining = true;
       this.mineProgress += dt * this.drillSpeedMult;

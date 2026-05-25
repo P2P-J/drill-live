@@ -93,12 +93,10 @@ function messageText(msg) {
 const CHAT_COMMANDS = {
   '!fast': 'FAST',
 };
-// 스트리머/모더레이터만 쓸 수 있는 명령어 (spec 5-3 스트리머 전용)
+// 스트리머/모더레이터만 쓸 수 있는 명령어
 const STREAMER_COMMANDS = {
   '!reset': 'RESET',
   '!jackpot': 'JACKPOT',
-  '!boss_spawn': 'BOSS_SPAWN',
-  '!boss': null,  // 채팅 봇 응답용 (게임 효과 없음, 별도 처리 시 사용)
 };
 
 const STREAMER_CHANNEL_ID = process.env.STREAMER_CHANNEL_ID || null;
