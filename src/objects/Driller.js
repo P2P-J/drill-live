@@ -327,14 +327,13 @@ export class Driller {
         if (ore) {
           totalGold += ore.value;
           gameState.addOre(ore.id);
-          this.soundManager?.playOreByRarity(ore.rarity);
+          // 광물 먹는 사운드 — 50% 볼륨 (기본 대비 절반)
+          this.soundManager?.playOreByRarity(ore.rarity, { volume: 0.5 });
         }
       }
     }
 
-    // 채굴 한 사이클당 흙 사운드 1회 (모든 타일마다 안 침 — throttle도 있지만 직접 단일화)
-    this.soundManager?.play('mine_dirt');
-
+    // mine_dirt 사운드 제거 — drill_loop와 광물 사운드만 나도록
     if (totalGold > 0) gameState.addGold(totalGold);
   }
 

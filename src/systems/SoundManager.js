@@ -181,7 +181,8 @@ export class SoundManager {
   }
 
   // 광물 등급 → 사운드 키 매핑. rarity 외 케이스는 ore_common.
-  playOreByRarity(rarity) {
+  // opts.volume — 사운드별 기본 볼륨에 곱해지는 배율 (예: 0.5 = 절반)
+  playOreByRarity(rarity, opts = {}) {
     const map = {
       common:    'ore_common',
       uncommon:  'ore_uncommon',
@@ -189,7 +190,7 @@ export class SoundManager {
       epic:      'ore_epic',
       legendary: 'ore_legendary',
     };
-    this.play(map[rarity] ?? 'ore_common');
+    this.play(map[rarity] ?? 'ore_common', opts);
   }
 
   _ctx() {
