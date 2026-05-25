@@ -59,6 +59,11 @@ export class RemoteTrigger {
     if (msg?.type === 'trigger' && typeof msg.triggerId === 'string') {
       this.triggerSystem.fire(msg.triggerId, msg.donor ?? null);
       this._emit('trigger', msg);
+      return;
+    }
+    if (msg?.type === 'overlay' && typeof msg.kind === 'string') {
+      this._emit('overlay', msg);
+      return;
     }
     // 'welcome' 등 기타 메시지는 무시
   }
