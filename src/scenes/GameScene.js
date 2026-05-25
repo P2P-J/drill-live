@@ -73,6 +73,7 @@ export class GameScene extends Phaser.Scene {
       biomeManager: this.biomeManager,
       buffSystem: this.buffSystem,
       triggerSystem: this.triggerSystem,
+      remoteTrigger: this.remoteTrigger,
     });
 
     this._setupDebugKeys();

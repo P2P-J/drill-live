@@ -3,6 +3,7 @@ import { GAME } from '../config/game.js';
 import { ORES, ORE_IDS } from '../config/ores.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
+import { OverlaySystem } from '../systems/OverlaySystem.js';
 
 const INVENTORY_X = 6;
 const INVENTORY_W = 96;
@@ -21,8 +22,10 @@ export class UIScene extends Phaser.Scene {
     this.biomeManager = data.biomeManager;
     this.buffSystem = data.buffSystem;
     this.triggerSystem = data.triggerSystem;
+    this.remoteTrigger = data.remoteTrigger;
     this.eventLines = [];
     this.buffIndicators = new Map();
+    this.likeItems = new Map();
   }
 
   create() {
@@ -32,8 +35,14 @@ export class UIScene extends Phaser.Scene {
     this._buildStatsPanel();
     this._buildBuffArea();
     this._buildAnnouncement();
+    this._buildOverlay();
     this._wireEvents();
     this._refreshStats();
+
+    this.overlaySystem = new OverlaySystem(this);
+    if (this.remoteTrigger) {
+      this.remoteTrigger.on('overlay', (payload) => this.overlaySystem.handle(payload));
+    }
   }
 
   // 우측 상단 — 드릴 스펙(파워/범위/엔진) + 현재 속도 배율(버프 포함)
@@ -302,6 +311,116 @@ export class UIScene extends Phaser.Scene {
     const [first, second] = this.eventLines;
     this.eventText1.setText(first?.title ?? '');
     this.eventText2.setText(first?.sub ?? second?.title ?? '');
+  }
+
+  _buildOverlay() {
+    // 팝업 — 가운데 상단 (announcement보다 살짝 아래)
+    this.overlayPopup = this.add.container(GAME.width / 2, 200);
+    this.overlayPopup.setDepth(99);
+    this.overlayPopup.setVisible(false);
+    this.overlayPopupText = this.add.text(0, 0, '', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '52px',
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 6,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
+    this.overlayPopup.add(this.overlayPopupText);
+
+    // LIKE 피드 — 인벤토리(우측 ~102px) 옆 x=120부터, BOTTOM_BAR 위에서 위로 쌓음
+    this.overlayLikeAnchorX = 120;
+    this.overlayLikeAnchorY = BOTTOM_BAR_Y - 16;
+    this.overlayLikeRowH = 36;
+  }
+
+  // OverlaySystem이 호출 — 팝업 한 개 표시 (2.5초 후 done 통보)
+  _renderPopup(text, kind) {
+    const colorByKind = { SUB: '#FFD700', MEMBER: '#E1BEE7', SUPERCHAT: '#FF8A65' };
+    this.overlayPopupText.setText(text);
+    this.overlayPopupText.setColor(colorByKind[kind] ?? '#FFFFFF');
+    this.overlayPopup.setVisible(true);
+    this.overlayPopup.setAlpha(0);
+    this.overlayPopup.setScale(0.7);
+
+    this.tweens.killTweensOf(this.overlayPopup);
+    this.tweens.add({
+      targets: this.overlayPopup, alpha: 1, scale: 1.0,
+      duration: 220, ease: 'Back.easeOut',
+    });
+    this.time.delayedCall(2000, () => {
+      this.tweens.add({
+        targets: this.overlayPopup, alpha: 0,
+        duration: 300,
+        onComplete: () => {
+          this.overlayPopup.setVisible(false);
+          this.overlaySystem?.notifyPopupDone();
+        },
+      });
+    });
+  }
+
+  // OverlaySystem이 호출 — LIKE 1건 추가 (4초 자체 fade)
+  _renderLike(name) {
+    const existing = this.likeItems.get(name);
+    if (existing) existing.destroy();
+
+    const c = this.add.container(this.overlayLikeAnchorX, this.overlayLikeAnchorY);
+    c.setDepth(98);
+    const txt = this.add.text(0, 0, `💗 ${name}`, {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '20px',
+      color: '#FF80AB',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0, 1);
+    c.add(txt);
+    c.setAlpha(0);
+    this.likeItems.set(name, c);
+
+    this._restackLikeFeed();
+
+    this.tweens.add({
+      targets: c, alpha: 1, duration: 150, ease: 'Quad.easeOut',
+    });
+    this.time.delayedCall(4000, () => {
+      if (!this.likeItems.has(name)) return;
+      this.tweens.add({
+        targets: c, alpha: 0, duration: 250,
+        onComplete: () => {
+          c.destroy();
+          this.likeItems.delete(name);
+          this.overlaySystem?.notifyLikeExpired(name);
+          this._restackLikeFeed();
+        },
+      });
+    });
+  }
+
+  // OverlaySystem이 호출 — 큐 초과로 강제 만료
+  _expireLike(name) {
+    const c = this.likeItems.get(name);
+    if (!c) return;
+    this.likeItems.delete(name);
+    this.tweens.killTweensOf(c);
+    this.tweens.add({
+      targets: c, alpha: 0, duration: 200,
+      onComplete: () => {
+        c.destroy();
+        this._restackLikeFeed();
+      },
+    });
+  }
+
+  _restackLikeFeed() {
+    const entries = [...this.likeItems.entries()];
+    const last = entries.length - 1;
+    entries.forEach(([_name, c], i) => {
+      const targetY = this.overlayLikeAnchorY - (last - i) * this.overlayLikeRowH;
+      this.tweens.add({
+        targets: c, y: targetY, duration: 120, ease: 'Quad.easeOut',
+      });
+    });
   }
 
   _wireEvents() {
