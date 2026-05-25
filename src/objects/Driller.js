@@ -3,6 +3,11 @@ import { GAME } from '../config/game.js';
 import { gameState } from '../systems/GameState.js';
 import { ensureDrillerTexture } from './DrillerArt.js';
 
+// 중력 — 1 타일 = 1m = 64px. 현실 g=627 px/s²의 약 2배(게임 페이스).
+// ExplosionEffect의 GRAVITY_PX_S2와 일치시켜 드릴/폭탄이 같은 물리.
+const GRAVITY_PX_S2 = 1250;
+const MAX_FALL_SPEED = 2400;
+
 export class Driller {
   constructor(scene, tileX, worldY, tileMap, upgradeSystem = null, buffSystem = null, soundManager = null) {
     this.scene = scene;
@@ -267,6 +272,9 @@ export class Driller {
         this._applyCracksToSemicircle(nextTileY, currentTileX, crackStage);
       }
 
+      // 채굴 중에는 vy 리셋 — 지면이 잡아주는 셈
+      this.vy = 0;
+
       if (this.mineProgress >= GAME.minePerTileSeconds) {
         this._mineSemicircle(nextTileY, currentTileX);
         this.mineProgress = 0;
@@ -285,7 +293,10 @@ export class Driller {
         this._drillLoop = null;
       }
       this.isMining = false;
-      this.y += this.speed * this.engineMult * dt;
+      // 자유낙하 — 중력 가속 (1 tile = 1m 스케일).
+      // engineMult는 가속 자체의 배수로 작용 (엔진이 좋으면 더 빠르게 끌어내림).
+      this.vy = Math.min(MAX_FALL_SPEED, this.vy + GRAVITY_PX_S2 * this.engineMult * dt);
+      this.y += this.vy * dt;
       // 채굴 중이 아니면 남은 크랙 정리
       if (this._crackedTiles && this._crackedTiles.length > 0) {
         for (const t of this._crackedTiles) {

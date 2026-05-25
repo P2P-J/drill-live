@@ -45,8 +45,10 @@ function ensureTntTexture(scene, key, bodyColor) {
   return key;
 }
 
-// 중력 — px/s^2. 시각적으로 자연스러운 낙하 가속.
-const GRAVITY_PX_S2 = 1800;
+// 중력 — 현실 g = 9.8 m/s², 1 타일 = 1m = 64px 이므로 9.8 × 64 = 627 px/s².
+// 게임 페이싱을 위해 약 2배 증폭(1250)해서 느려보이지 않게 함.
+const GRAVITY_PX_S2 = 1250;
+const MAX_FALL_SPEED = 2400;  // 단말속도 — 시야 밖에서 떨어진 폭탄도 합리적 속도로 도달
 
 export class ExplosionEffect {
   constructor(scene, tileMap, soundManager = null) {
@@ -109,13 +111,16 @@ export class ExplosionEffect {
     };
     if (names.length > 0) namesText.setText(names.slice(-5).join('\n'));
 
-    // 본체 — 중력 + 충돌 시뮬레이션에 사용
+    // 본체 — 중력 + 충돌 + sizzle 시뮬레이션에 사용
     const body = {
       x: targetX, y: startY, vy: 0,
       tntScale,
       tnt, labelText, namesText, handle,
       drillY,    // _findGround scan 기준
       state: 'falling',
+      // sizzle 잔여시간 — 최초 착지 때 sizzleDurationMs로 초기화, 이후 falling/sizzling 토글에도 보존
+      sizzleRemainingMs: null,
+      sizzleHandles: null,
       // 폭발 메타
       radius, color, shake, sizzleDurationMs, explosionSound,
     };
@@ -133,68 +138,145 @@ export class ExplosionEffect {
     return handle;
   }
 
-  // GameScene.update에서 매 프레임 호출. 모든 falling TNT에 중력 적용 + 충돌 검사.
+  // GameScene.update에서 매 프레임 호출. 모든 본체에 중력 + 충돌 + sizzle 타이머 적용.
+  // - falling: 중력 가속, 충돌 시 sizzling 전환
+  // - sizzling: 지지대 사라지면 falling 재전환 (sizzle 잔여시간은 유지),
+  //   아니면 sizzleRemainingMs 감소, 0이면 폭발
   step(deltaMs) {
     if (this._bodies.length === 0) return;
     const dt = Math.min(0.05, deltaMs / 1000);
 
-    // 깊이 순(아래쪽=큰 y) 정렬 — 아래쪽 본체부터 처리해야 위 본체가 정확한 충돌 대상을 봄
-    const falling = this._bodies.filter(b => b.state === 'falling').sort((a, b) => b.y - a.y);
-    for (const body of falling) {
-      body.vy += GRAVITY_PX_S2 * dt;
-      const newY = body.y + body.vy * dt;
-      const restY = this._findRestY(body, newY);
-      if (restY !== null && newY >= restY) {
-        body.y = restY;
-        body.vy = 0;
-        body.state = 'sizzling';
-        body.handle.isLanded = true;
-        this._beginSizzle(body);
-      } else {
-        body.y = newY;
+    // 깊이 순(아래쪽=큰 y) 정렬 — 아래 본체부터 처리해서 위 본체가 정확한 충돌 대상을 봄
+    const bodies = [...this._bodies].sort((a, b) => b.y - a.y);
+    for (const body of bodies) {
+      if (body.state === 'sizzling') {
+        // 지지대(아래 폭탄/땅)가 사라졌나 검사 — 현재 y와 _calcRestY 차이가 크면 떨어짐
+        const supportY = this._calcRestY(body);
+        if (supportY > body.y + 2) {
+          // 지지대 없음 → 다시 낙하. sizzleRemainingMs는 그대로 (도화선 타임 보존).
+          body.state = 'falling';
+          body.handle.isLanded = false;
+          body.vy = 0;
+          this._endSizzleEffects(body);
+        } else {
+          body.sizzleRemainingMs -= deltaMs;
+          if (body.sizzleRemainingMs <= 0) {
+            this._endSizzleEffects(body);
+            this._explodeBody(body);
+            continue;
+          }
+        }
       }
+      if (body.state === 'falling') {
+        body.vy = Math.min(MAX_FALL_SPEED, body.vy + GRAVITY_PX_S2 * dt);
+        const newY = body.y + body.vy * dt;
+        const restY = this._findRestY(body, newY);
+        if (restY !== null) {
+          body.y = restY;
+          body.vy = 0;
+          body.state = 'sizzling';
+          body.handle.isLanded = true;
+          // 최초 착지면 sizzle 풀타임, 재착지면 보존된 잔여시간 사용
+          if (body.sizzleRemainingMs === null) body.sizzleRemainingMs = body.sizzleDurationMs;
+          this._beginSizzleEffects(body);
+        } else {
+          body.y = newY;
+        }
+      }
+      // sprite 동기화
       body.tnt.y = body.y;
       body.labelText.y = body.y;
       body.namesText.y = body.y - 50;
     }
   }
 
-  _beginSizzle(body) {
-    this.soundManager?.play('tnt_sizzle', { duration: body.sizzleDurationMs / 1000 });
-    this._sizzle(body.tnt, body.labelText, body.sizzleDurationMs, () => {
-      body.handle.isExploded = true;
-      body.tnt.destroy();
-      body.labelText.destroy();
-      body.namesText.destroy();
-      // 활성 본체 목록에서 제거 — 다른 폭탄이 이 자리로 떨어질 수 있게
-      const idx = this._bodies.indexOf(body);
-      if (idx >= 0) this._bodies.splice(idx, 1);
-      this.soundManager?.play(body.explosionSound);
-      const explosionY = body.y + (T / 2) * body.tntScale;
-      this._explode(body.x, explosionY, { radius: body.radius, color: body.color, shake: body.shake });
-    });
-  }
-
-  // TNT 본체가 newY로 이동하려고 할 때, 정지해야 할 Y(=TNT 중심)를 반환. 충돌 없으면 null.
-  _findRestY(body, newY) {
+  // 본체의 현재 위치에서 정지해야 할 Y 계산 (땅/다른 폭탄 중 가장 높은 지지대).
+  // newY 인자 없이 항상 계산 — _findRestY와 _calcRestY 분리는 newY 임계 체크 유무.
+  _calcRestY(body) {
     const halfH = (T / 2) * body.tntScale;
     const halfW = (T / 2) * body.tntScale;
-    // 1) 땅
-    const groundTile = this._findGround(body.x, body.drillY);
+    const groundTile = this._findGround(body.x, body.y);
     let rest = groundTile.tileY * T - halfH;
-    // 2) 다른 본체들 (falling/sizzling 모두 — 폭발 전 본체는 stack 대상)
     for (const other of this._bodies) {
       if (other === body) continue;
-      if (other.state === 'exploded') continue;
       const otherHalfH = (T / 2) * other.tntScale;
       const otherHalfW = (T / 2) * other.tntScale;
+      // 좌우로 겹치는 폭탄만 stack 대상 (살짝 여유 -4)
       if (Math.abs(body.x - other.x) < halfW + otherHalfW - 4) {
-        const stackTop = other.y - otherHalfH;       // 상대 TNT 상단
-        const candidateRest = stackTop - halfH;       // 그 위에 살포시
-        if (candidateRest < rest && candidateRest > body.y) rest = candidateRest;
+        const stackTop = other.y - otherHalfH;
+        const candidateRest = stackTop - halfH;
+        // 상대가 내 아래에 있을 때만 (그 위에 쌓일 수 있을 때)
+        if (candidateRest > body.y && candidateRest < rest) rest = candidateRest;
       }
     }
+    return rest;
+  }
+
+  _findRestY(body, newY) {
+    const rest = this._calcRestY(body);
     return newY >= rest ? rest : null;
+  }
+
+  _explodeBody(body) {
+    body.handle.isExploded = true;
+    body.tnt.destroy();
+    body.labelText.destroy();
+    body.namesText.destroy();
+    const idx = this._bodies.indexOf(body);
+    if (idx >= 0) this._bodies.splice(idx, 1);
+    this.soundManager?.play(body.explosionSound);
+    const explosionY = body.y + (T / 2) * body.tntScale;
+    this._explode(body.x, explosionY, { radius: body.radius, color: body.color, shake: body.shake });
+  }
+
+  // sizzle 시작 — 시각 효과 tweens + 사운드. 재착지 시에도 호출 (잔여 시간 기반).
+  _beginSizzleEffects(body) {
+    this.soundManager?.play('tnt_sizzle', { duration: body.sizzleRemainingMs / 1000 });
+    const tnt = body.tnt;
+    const labelText = body.labelText;
+    tnt.x = body.x;
+    tnt.alpha = 1;
+    const handles = [];
+    handles.push(this.scene.tweens.add({
+      targets: tnt, x: { from: body.x - 4, to: body.x + 4 },
+      duration: 70, yoyo: true, repeat: -1,
+    }));
+    handles.push(this.scene.tweens.add({
+      targets: tnt, alpha: { from: 1.0, to: 0.45 },
+      duration: 110, yoyo: true, repeat: -1,
+    }));
+    handles.push(this.scene.tweens.add({
+      targets: labelText, x: { from: labelText.x - 3, to: labelText.x + 3 },
+      duration: 90, yoyo: true, repeat: -1,
+    }));
+    const sparkEvent = this.scene.time.addEvent({
+      delay: 60, loop: true,
+      callback: () => {
+        const sx = body.x + (Math.random() - 0.5) * 14;
+        const sy = body.y - 30 * body.tntScale;
+        const c = Math.random() < 0.5 ? 0xFFEB3B : 0xFF9800;
+        const p = this.scene.add.rectangle(sx, sy, 4, 4, c);
+        p.setDepth(86);
+        this.scene.tweens.add({
+          targets: p,
+          x: sx + (Math.random() - 0.5) * 18,
+          y: sy - 16 - Math.random() * 12,
+          alpha: 0, scale: 0.2, duration: 260, ease: 'Quad.easeOut',
+          onComplete: () => p.destroy(),
+        });
+      },
+    });
+    handles.push({ stop: () => sparkEvent.remove() });
+    body.sizzleHandles = handles;
+  }
+
+  _endSizzleEffects(body) {
+    if (body.sizzleHandles) {
+      for (const h of body.sizzleHandles) h.stop?.();
+      body.sizzleHandles = null;
+    }
+    body.tnt.alpha = 1;
+    body.tnt.x = body.x;
   }
 
   // 첫 번째 살아있는 타일(=땅) 찾기. drillBottomY = 드릴 sprite의 시각적 바닥.
@@ -211,73 +293,6 @@ export class ExplosionEffect {
       tileY++;
     }
     return { tileX, tileY: Math.floor(drillBottomY / T) + 3 };
-  }
-
-  // 치지직 — 도화선 타들어가는 느낌. duration 파라미터로 길이 조정 가능 (LIKE=3초, BOMB=1초)
-  _sizzle(tnt, labelText, sizzleMs, onDone) {
-    const startX = tnt.x;
-    const startY = tnt.y;
-
-    // 떨림
-    const shakeTween = this.scene.tweens.add({
-      targets: tnt,
-      x: { from: startX - 4, to: startX + 4 },
-      duration: 70,
-      yoyo: true,
-      repeat: -1,
-    });
-
-    // 명암 반복 (점점 빨라짐 효과는 ease로 흉내)
-    const flashTween = this.scene.tweens.add({
-      targets: tnt,
-      alpha: { from: 1.0, to: 0.45 },
-      duration: 110,
-      yoyo: true,
-      repeat: -1,
-    });
-
-    // 도화선 불꽃 입자 — TNT 위쪽에서 튄다
-    const sparkEvent = this.scene.time.addEvent({
-      delay: 60,
-      repeat: Math.floor(sizzleMs / 60) - 1,
-      callback: () => {
-        const sx = tnt.x + (Math.random() - 0.5) * 14;
-        const sy = tnt.y - 30 * (tnt.scale ?? 1);
-        const c = Math.random() < 0.5 ? 0xFFEB3B : 0xFF9800;
-        const p = this.scene.add.rectangle(sx, sy, 4, 4, c);
-        p.setDepth(86);
-        this.scene.tweens.add({
-          targets: p,
-          x: sx + (Math.random() - 0.5) * 18,
-          y: sy - 16 - Math.random() * 12,
-          alpha: 0,
-          scale: 0.2,
-          duration: 260,
-          ease: 'Quad.easeOut',
-          onComplete: () => p.destroy(),
-        });
-      },
-    });
-
-    // 라벨도 같이 살짝 진동
-    const labelTween = this.scene.tweens.add({
-      targets: labelText,
-      x: { from: labelText.x - 3, to: labelText.x + 3 },
-      duration: 90,
-      yoyo: true,
-      repeat: -1,
-    });
-
-    this.scene.time.delayedCall(sizzleMs, () => {
-      shakeTween.stop();
-      flashTween.stop();
-      labelTween.stop();
-      sparkEvent.remove();
-      tnt.x = startX;
-      tnt.y = startY;
-      tnt.alpha = 1;
-      onDone();
-    });
   }
 
   // 폭발 시각 효과 + 타일 파괴
