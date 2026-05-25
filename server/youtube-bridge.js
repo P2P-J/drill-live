@@ -85,6 +85,22 @@ async function postTrigger(triggerId, donor) {
   }
 }
 
+async function postOverlay(payload) {
+  try {
+    const res = await fetch(`${SERVER_URL}/overlay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.warn(`[YT] /overlay ${res.status}:`, body);
+    }
+  } catch (e) {
+    console.warn('[YT] POST /overlay error:', e.message);
+  }
+}
+
 function messageText(msg) {
   return msg.message?.map(m => m.text ?? m.emojiText ?? '').join('') ?? '';
 }
@@ -171,6 +187,15 @@ chat.on('chat', (item) => {
     const triggerId = keywordFromText(text, defaultTier) ?? defaultTier;
     console.log(`[YT] superchat ${item.superchat.amount} (~$${usd.toFixed(2)}) from ${author} → ${triggerId}`);
     postTrigger(triggerId, author);
+    postOverlay({ kind: 'SUPERCHAT', name: author, amount: Number(usd.toFixed(2)), tier: triggerId });
+    return;
+  }
+
+  // 1-b) 멤버십 가입 — youtube-chat 시스템 메시지 (형식 불안정, best-effort)
+  if (item.isMembership) {
+    console.log(`[YT] membership from ${author}`);
+    postOverlay({ kind: 'MEMBER', name: author });
+    postTrigger('SUB', author);  // 광물 스폰 이펙트 재사용
     return;
   }
 
