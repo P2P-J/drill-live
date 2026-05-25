@@ -40,7 +40,37 @@ export class UpgradeSystem {
     return this.remainingMs(name) / TEMP_UPGRADE_MS;
   }
 
+  // 드릴 직접 지정 (wood=1, stone=2, iron=3, gold=4, diamond=5).
+  // 다운그레이드 시도는 거부, 같은 Lv은 타이머만 갱신.
+  tryBuyDrillByLevel(targetLv) {
+    const def = UPGRADES.drillPower;
+    if (targetLv < 1 || targetLv > def.maxLevel) {
+      return { ok: false, reason: 'invalid', targetLv };
+    }
+    const curLv = this.temp.drillPower.level;
+    // 같은 Lv 또는 더 낮은 Lv 요청 — 다운그레이드는 무시, 같은 Lv은 timer 갱신만
+    if (targetLv === curLv) {
+      this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+      this._emit('refresh', { name: 'drillPower', level: curLv });
+      return { ok: true, level: curLv, cost: 0, refreshed: true };
+    }
+    if (targetLv < curLv) {
+      return { ok: false, reason: 'downgrade', curLv, targetLv };
+    }
+    // 업그레이드 — Lv N으로 가는 비용 = cost[N-1]
+    const cost = def.cost[targetLv - 1];
+    if (this.state.gold < cost) {
+      return { ok: false, reason: 'no_gold', cost, gold: this.state.gold };
+    }
+    if (cost > 0) this.state.spendGold(cost);
+    this.temp.drillPower.level = targetLv;
+    this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+    this._emit('upgrade', { name: 'drillPower', level: targetLv, cost });
+    return { ok: true, level: targetLv, cost, name: 'drillPower' };
+  }
+
   // 채팅 트리거 발동 시 호출 — 다음 Lv 비용 충당되면 임시 Lv +1, 타이머 갱신.
+  // (범위/엔진용 — drillPower는 tryBuyDrillByLevel 사용)
   // 반환: { ok, level?, cost?, name?, reason? }
   tryChatUpgrade(name) {
     const def = UPGRADES[name];

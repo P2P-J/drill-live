@@ -96,10 +96,14 @@ export class GameScene extends Phaser.Scene {
 
     // R: drillRange 채팅 업그레이드 시뮬레이션 (UPGRADE_RANGE 트리거)
     this.input.keyboard.on('keydown-R', () => this.triggerSystem.fire('UPGRADE_RANGE'));
-    // P: drillPower 채팅 업그레이드 시뮬레이션 (UPGRADE_POWER 트리거)
-    this.input.keyboard.on('keydown-P', () => this.triggerSystem.fire('UPGRADE_POWER'));
     // U: engine 채팅 업그레이드 시뮬레이션 (UPGRADE_ENGINE 트리거)
     this.input.keyboard.on('keydown-U', () => this.triggerSystem.fire('UPGRADE_ENGINE'));
+    // 드릴 변경 테스트 — 자판 상단 letter (mnemonic: stone, iron 등 일부만)
+    // 나머지는 chat / server CLI로 테스트.
+    const DRILL_KEYS = { 'S': 'DRILL_STONE', 'I': 'DRILL_IRON' };
+    for (const [key, triggerId] of Object.entries(DRILL_KEYS)) {
+      this.input.keyboard.on(`keydown-${key}`, () => this.triggerSystem.fire(triggerId));
+    }
 
     // SPACE: 후원 시뮬레이션 — DRILL RANGE +2, 10초 (드릴이 커지고 반경 확장)
     this.input.keyboard.on('keydown-SPACE', () => {

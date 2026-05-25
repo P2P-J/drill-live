@@ -22,8 +22,9 @@ const VALID_TRIGGER_IDS = new Set([
   'GOLD_RUSH', 'GEM_DROP', 'DIAMOND', 'SPECIAL',
   'RANGE_UP', 'FAST',
   'SUB',
-  'UPGRADE_POWER', 'UPGRADE_RANGE', 'UPGRADE_ENGINE',   // 채팅 업그레이드 (임시 30초)
-  'RESET', 'JACKPOT',                                   // 스트리머 전용
+  'DRILL_WOOD', 'DRILL_STONE', 'DRILL_IRON', 'DRILL_GOLD', 'DRILL_DIAMOND',   // 채팅 드릴 변경
+  'UPGRADE_RANGE', 'UPGRADE_ENGINE',                                            // 채팅 범위/엔진 업그레이드
+  'RESET', 'JACKPOT',                                                           // 스트리머 전용
 ]);
 
 const app = express();

@@ -105,9 +105,17 @@ npm run yt -- @MyChannel
 **채팅 명령어 (누구나)**:
 - `!bomb` → CHAT_BOMB (가장 작은 TNT, 무료)
 - `!fast` → FAST (드릴 ×1.5 / 10초, 채널 쿨다운 10초)
-- `!power` → UPGRADE_POWER (드릴 파워 +1 Lv, 30초 임시. 골드 차감)
-- `!range` → UPGRADE_RANGE (드릴 범위 +1 Lv, 30초 임시)
-- `!engine` → UPGRADE_ENGINE (엔진 +1 Lv, 30초 임시)
+
+**드릴 변경** (직접 Lv 지정, 30초 임시, 가격 미달이면 silently fail):
+- `!wood` → DRILL_WOOD (0 G, Lv 1 — 리셋용)
+- `!stone` → DRILL_STONE (16,000 G, ×1.2)
+- `!iron` → DRILL_IRON (80,000 G, ×1.5)
+- `!gold` → DRILL_GOLD (360,000 G, ×1.75)
+- `!diamond` → DRILL_DIAMOND (1,600,000 G, ×2.0)
+
+**범위/엔진** (다음 Lv +1, 30초 임시):
+- `!range` → UPGRADE_RANGE (드릴 범위)
+- `!engine` → UPGRADE_ENGINE (이동/낙하 속도)
 
 **스트리머 전용** (owner/moderator만 — 환경변수 `STREAMER_CHANNEL_ID`로 특정 채널 ID 강제 가능):
 - `!reset` → RESET (새 맵 생성)

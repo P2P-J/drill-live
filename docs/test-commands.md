@@ -76,13 +76,24 @@
 
 ## ⚡ 채팅 임시 업그레이드 시뮬레이션 (시청자 채팅 흉내)
 
-| 키 | 트리거 | 채팅 명령어 | 효과 |
-|---|---|---|---|
-| `P` | UPGRADE_POWER | `!power` | 드릴 파워 다음 Lv (Wood→Stone→Iron→Gold→Diamond). 30초 유지 후 복귀. |
-| `R` | UPGRADE_RANGE | `!range` | 드릴 범위 다음 Lv (1→3→5타일). 30초 유지. |
-| `U` | UPGRADE_ENGINE | `!engine` | 엔진 다음 Lv. 30초 유지. |
+**드릴 변경** (직접 Lv 지정 — 30초 유지):
 
-> 골드 부족 시 silently fail. 만렙 도달 시 골드 안 들고 타이머만 갱신.
+| 키 | 트리거 | 채팅 | 가격 |
+|---|---|---|---|
+| (없음) | DRILL_WOOD | `!wood` | 0 G |
+| `S` | DRILL_STONE | `!stone` | 16,000 G |
+| `I` | DRILL_IRON | `!iron` | 80,000 G |
+| (없음) | DRILL_GOLD | `!gold` | 360,000 G |
+| (없음) | DRILL_DIAMOND | `!diamond` | 1,600,000 G |
+
+**범위/엔진** (다음 Lv +1 — 30초 유지):
+
+| 키 | 트리거 | 채팅 | 효과 |
+|---|---|---|---|
+| `R` | UPGRADE_RANGE | `!range` | 드릴 범위 다음 Lv (1→3→5타일) |
+| `U` | UPGRADE_ENGINE | `!engine` | 엔진 다음 Lv |
+
+> 골드 부족 시 silently fail (알림 없음). 다운그레이드 시도 무시. 같은 Lv 재요청 시 타이머만 갱신.
 
 ---
 

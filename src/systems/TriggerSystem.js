@@ -49,8 +49,15 @@ export const TRIGGER_DEFS = {
   // 신규 구독 — 드릴 아래 10줄을 현재 바이옴 특수 광물로 가득 채움
   SUB:        { type: 'special', action: 'subscribe', priceLabel: 'SUB', label: 'NEW SUB!', color: 0xF06292 },
 
-  // 채팅 업그레이드 — 골드 차감해서 30초 임시 +1 (자동 구매 없음, 채팅으로만)
-  UPGRADE_POWER:  { type: 'special', action: 'upgradePower',  priceLabel: '!power',  label: 'POWER UP!',  color: 0x4CAF50 },
+  // 드릴 변경 — 채팅이 직접 Lv을 지정해서 골드 차감 후 30초 유지
+  // 가격 = upgrades.drillPower.cost[targetLv-1]. 다운그레이드 시도는 무시.
+  DRILL_WOOD:    { type: 'special', action: 'setDrill', drillLevel: 1, priceLabel: '!wood',    label: 'WOOD DRILL!',    color: 0xCDA678 },
+  DRILL_STONE:   { type: 'special', action: 'setDrill', drillLevel: 2, priceLabel: '!stone',   label: 'STONE DRILL!',   color: 0xB0B0B0 },
+  DRILL_IRON:    { type: 'special', action: 'setDrill', drillLevel: 3, priceLabel: '!iron',    label: 'IRON DRILL!',    color: 0xA8C5DC },
+  DRILL_GOLD:    { type: 'special', action: 'setDrill', drillLevel: 4, priceLabel: '!gold',    label: 'GOLD DRILL!',    color: 0xFFD54F },
+  DRILL_DIAMOND: { type: 'special', action: 'setDrill', drillLevel: 5, priceLabel: '!diamond', label: 'DIAMOND DRILL!', color: 0x80DEEA },
+
+  // 범위/엔진은 기존 incremental 방식 유지 (Lv 한 단계씩 증가)
   UPGRADE_RANGE:  { type: 'special', action: 'upgradeRange',  priceLabel: '!range',  label: 'RANGE UP!',  color: 0xFF9800 },
   UPGRADE_ENGINE: { type: 'special', action: 'upgradeEngine', priceLabel: '!engine', label: 'ENGINE UP!', color: 0x03A9F4 },
 
@@ -102,6 +109,15 @@ export class TriggerSystem {
     }
     donor = donor ?? randomDonor();
 
+    // special 액션 중 골드 체크가 필요한 채팅 업그레이드는 결과를 받아서 실패 시 announce/sound 안 함
+    if (def.type === 'special') {
+      const result = this._handleSpecial(def, donor);
+      if (result && result.ok === false) {
+        this._emit('denied', { triggerId, def, donor, result });
+        return;
+      }
+    }
+
     const event = { triggerId, def, donor };
     this._emit('fire', event);
 
@@ -114,26 +130,37 @@ export class TriggerSystem {
       case 'oreSpawn':   return this._handleOreSpawn(def);
       case 'like':       return this._handleLike(def, donor);
       case 'composite':  return this._handleComposite(def, donor);
-      case 'special':    return this._handleSpecial(def, donor);
+      case 'special':    return;  // 이미 위에서 처리됨
     }
   }
 
+  // 반환: { ok, ... } — fire()가 ok===false면 announce/sound 안 함
   _handleSpecial(def, donor) {
     switch (def.action) {
-      case 'reset':         return this._doReset();
-      case 'jackpot':       return this._doJackpot();
-      case 'subscribe':     return this._doSubscribe(donor);
-      case 'upgradePower':  return this._doChatUpgrade('drillPower', donor);
+      case 'reset':         this._doReset();          return { ok: true };
+      case 'jackpot':       this._doJackpot();        return { ok: true };
+      case 'subscribe':     this._doSubscribe(donor); return { ok: true };
+      case 'setDrill':      return this._doSetDrill(def.drillLevel, donor);
       case 'upgradeRange':  return this._doChatUpgrade('drillRange', donor);
       case 'upgradeEngine': return this._doChatUpgrade('engine', donor);
     }
+    return { ok: true };
   }
 
-  // 채팅 업그레이드 — UpgradeSystem.tryChatUpgrade 호출. 성공 시 'upgrade' 이벤트 emit.
+  // 드릴 직접 지정 (wood/stone/iron/gold/diamond) — 골드 충분하면 해당 Lv으로.
+  _doSetDrill(targetLv, donor) {
+    if (!this.upgradeSystem) return { ok: false, reason: 'no-system' };
+    const result = this.upgradeSystem.tryBuyDrillByLevel(targetLv);
+    this._emit('upgrade-attempt', { name: 'drillPower', donor, result });
+    return result;
+  }
+
+  // 범위/엔진 — 다음 Lv로 단계 증가.
   _doChatUpgrade(name, donor) {
-    if (!this.upgradeSystem) return;
+    if (!this.upgradeSystem) return { ok: false, reason: 'no-system' };
     const result = this.upgradeSystem.tryChatUpgrade(name);
     this._emit('upgrade-attempt', { name, donor, result });
+    return result;
   }
 
   // 신규 구독 — 드릴 바로 아래 10줄(전 채굴 폭)을 현재 바이옴 특수 광물로 채움
