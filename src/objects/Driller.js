@@ -28,10 +28,10 @@ export class Driller {
     this.sprite.setOrigin(0.5, 0.7);
 
     // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
-    // 목표: 기본 상태에서 드릴 폭 ≈ 320px (5 타일). 큰 PNG여도 자동 축소.
+    // 목표: 기본 상태에서 드릴 폭 ≈ 256px (4 타일). 큰 PNG여도 자동 축소.
     const srcImg = scene.textures.get(drillerKey).getSourceImage?.();
     const naturalW = (srcImg && srcImg.width) || 64;
-    this._baseScale = 320 / naturalW;
+    this._baseScale = 256 / naturalW;
     this.sprite.setScale(this._baseScale);
 
     this.container.add(this.sprite);
