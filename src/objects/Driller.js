@@ -206,19 +206,26 @@ export class Driller {
       return;
     }
 
-    // 좌우 + 벽 반사
+    // 좌우 + 벽 반사 (매 반사마다 속도 랜덤화 0.55~1.55배로 불규칙성 부여)
     let newX = this.worldX + this.vx * dt * this.engineMult;
     if (newX <= this.leftBound) {
       newX = this.leftBound;
-      this.vx = Math.abs(this.vx);
+      const jitter = 0.55 + Math.random() * 1.0;
+      this.vx = Math.abs(this.vx) * jitter;
       this._spawnBounceParticles(newX, this.y, -1);
       this._squashBounce();
     } else if (newX >= this.rightBound) {
       newX = this.rightBound;
-      this.vx = -Math.abs(this.vx);
+      const jitter = 0.55 + Math.random() * 1.0;
+      this.vx = -Math.abs(this.vx) * jitter;
       this._spawnBounceParticles(newX, this.y, +1);
       this._squashBounce();
     }
+    // 너무 느려지거나 너무 빨라지지 않게 clamp
+    const minSpd = GAME.bounceSpeed * 0.6;
+    const maxSpd = GAME.bounceSpeed * 1.8;
+    if (Math.abs(this.vx) < minSpd) this.vx = Math.sign(this.vx) * minSpd;
+    if (Math.abs(this.vx) > maxSpd) this.vx = Math.sign(this.vx) * maxSpd;
     this.worldX = newX;
 
     // 회전 없음. 채굴 중 상하 반동(드릴 두들기는 느낌) — sprite.y로 표현.

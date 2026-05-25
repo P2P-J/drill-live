@@ -161,6 +161,7 @@ export class GameScene extends Phaser.Scene {
     this.buffSystem.update();
     this.driller.update(delta);
     this.tileMap.update(this.driller.y);
+    this.triggerSystem.explosionEffect.step(delta);
 
     const km = this.biomeManager.yToKm(this.driller.y);
     gameState.setDepth(km);

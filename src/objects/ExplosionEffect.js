@@ -45,15 +45,21 @@ function ensureTntTexture(scene, key, bodyColor) {
   return key;
 }
 
+// 중력 — px/s^2. 시각적으로 자연스러운 낙하 가속.
+const GRAVITY_PX_S2 = 1800;
+
 export class ExplosionEffect {
   constructor(scene, tileMap, soundManager = null) {
     this.scene = scene;
     this.tileMap = tileMap;
     this.soundManager = soundManager;
+    // 활성 TNT 본체들 — 매 프레임 중력 + 충돌 계산. GameScene.update에서 step() 호출.
+    this._bodies = [];
   }
 
-  // 후원 폭탄 트리거 - TNT가 위에서 떨어져서 땅에 닿고, sizzle 후 폭발.
-  // opts: { radius, color, label, tntScale, shake, dropFromTilesAbove, sizzleDurationMs, names }
+  // 후원 폭탄 트리거 - TNT가 위에서 중력 받아 떨어져서 땅이나 먼저 떨어진 TNT 위에 쌓이고,
+  // sizzle 후 폭발. 폭탄끼리 겹치지 않음.
+  // opts: { radius, color, label, tntScale, shake, dropFromTilesAbove, sizzleDurationMs, names, explosionSound }
   // 반환: handle (LIKE TNT 같이 sizzle 중에 이름 더 추가하려고 할 때 사용)
   drop(targetX, drillY, opts = {}) {
     const radius = opts.radius ?? 1.5;
@@ -67,10 +73,6 @@ export class ExplosionEffect {
     const explosionSound = opts.explosionSound ?? 'bomb_small';
 
     const tntKey = ensureTntTexture(this.scene, `tnt-${color.toString(16)}`, color);
-
-    const ground = this._findGround(targetX, drillY);
-    const tntLandY = ground.tileY * T - T / 2;
-    const explosionY = ground.tileY * T + T / 2;
 
     const startY = drillY - dropTiles * T;
     const tnt = this.scene.add.image(targetX, startY, tntKey);
@@ -101,47 +103,98 @@ export class ExplosionEffect {
       addName(name) {
         if (this.isExploded) return false;
         this.names.push(name);
-        // 마지막 5개만 표시 (너무 많으면 화면 가림)
         namesText.setText(this.names.slice(-5).join('\n'));
         return true;
       },
     };
-    // 초기 이름 렌더
     if (names.length > 0) namesText.setText(names.slice(-5).join('\n'));
 
-    const fallDuration = 600;
-    this.scene.tweens.add({ targets: tnt, y: tntLandY, duration: fallDuration, ease: 'Quad.easeIn' });
-    this.scene.tweens.add({ targets: namesText, y: tntLandY - 50, duration: fallDuration, ease: 'Quad.easeIn' });
-    this.scene.tweens.add({
-      targets: labelText,
-      y: tntLandY,
-      duration: fallDuration,
-      ease: 'Quad.easeIn',
-      onComplete: () => {
-        handle.isLanded = true;
-        // 도화선 sizzle 사운드 — 지정 duration만큼만 재생 후 자동 fade out
-        this.soundManager?.play('tnt_sizzle', { duration: sizzleDurationMs / 1000 });
-        this._sizzle(tnt, labelText, sizzleDurationMs, () => {
-          handle.isExploded = true;
-          tnt.destroy();
-          labelText.destroy();
-          namesText.destroy();
-          this.soundManager?.play(explosionSound);
-          this._explode(targetX, explosionY, { radius, color, shake });
-        });
-      },
-    });
+    // 본체 — 중력 + 충돌 시뮬레이션에 사용
+    const body = {
+      x: targetX, y: startY, vy: 0,
+      tntScale,
+      tnt, labelText, namesText, handle,
+      drillY,    // _findGround scan 기준
+      state: 'falling',
+      // 폭발 메타
+      radius, color, shake, sizzleDurationMs, explosionSound,
+    };
+    this._bodies.push(body);
 
-    // 떨어지는 동안 살짝 흔들기
+    // 떨어지는 동안 살짝 흔들기 — 시각 흔들림은 별도 tween
     this.scene.tweens.add({
       targets: tnt,
       angle: { from: -6, to: 6 },
       duration: 120,
       yoyo: true,
-      repeat: Math.floor(fallDuration / 240),
+      repeat: 8,
     });
 
     return handle;
+  }
+
+  // GameScene.update에서 매 프레임 호출. 모든 falling TNT에 중력 적용 + 충돌 검사.
+  step(deltaMs) {
+    if (this._bodies.length === 0) return;
+    const dt = Math.min(0.05, deltaMs / 1000);
+
+    // 깊이 순(아래쪽=큰 y) 정렬 — 아래쪽 본체부터 처리해야 위 본체가 정확한 충돌 대상을 봄
+    const falling = this._bodies.filter(b => b.state === 'falling').sort((a, b) => b.y - a.y);
+    for (const body of falling) {
+      body.vy += GRAVITY_PX_S2 * dt;
+      const newY = body.y + body.vy * dt;
+      const restY = this._findRestY(body, newY);
+      if (restY !== null && newY >= restY) {
+        body.y = restY;
+        body.vy = 0;
+        body.state = 'sizzling';
+        body.handle.isLanded = true;
+        this._beginSizzle(body);
+      } else {
+        body.y = newY;
+      }
+      body.tnt.y = body.y;
+      body.labelText.y = body.y;
+      body.namesText.y = body.y - 50;
+    }
+  }
+
+  _beginSizzle(body) {
+    this.soundManager?.play('tnt_sizzle', { duration: body.sizzleDurationMs / 1000 });
+    this._sizzle(body.tnt, body.labelText, body.sizzleDurationMs, () => {
+      body.handle.isExploded = true;
+      body.tnt.destroy();
+      body.labelText.destroy();
+      body.namesText.destroy();
+      // 활성 본체 목록에서 제거 — 다른 폭탄이 이 자리로 떨어질 수 있게
+      const idx = this._bodies.indexOf(body);
+      if (idx >= 0) this._bodies.splice(idx, 1);
+      this.soundManager?.play(body.explosionSound);
+      const explosionY = body.y + (T / 2) * body.tntScale;
+      this._explode(body.x, explosionY, { radius: body.radius, color: body.color, shake: body.shake });
+    });
+  }
+
+  // TNT 본체가 newY로 이동하려고 할 때, 정지해야 할 Y(=TNT 중심)를 반환. 충돌 없으면 null.
+  _findRestY(body, newY) {
+    const halfH = (T / 2) * body.tntScale;
+    const halfW = (T / 2) * body.tntScale;
+    // 1) 땅
+    const groundTile = this._findGround(body.x, body.drillY);
+    let rest = groundTile.tileY * T - halfH;
+    // 2) 다른 본체들 (falling/sizzling 모두 — 폭발 전 본체는 stack 대상)
+    for (const other of this._bodies) {
+      if (other === body) continue;
+      if (other.state === 'exploded') continue;
+      const otherHalfH = (T / 2) * other.tntScale;
+      const otherHalfW = (T / 2) * other.tntScale;
+      if (Math.abs(body.x - other.x) < halfW + otherHalfW - 4) {
+        const stackTop = other.y - otherHalfH;       // 상대 TNT 상단
+        const candidateRest = stackTop - halfH;       // 그 위에 살포시
+        if (candidateRest < rest && candidateRest > body.y) rest = candidateRest;
+      }
+    }
+    return newY >= rest ? rest : null;
   }
 
   // 첫 번째 살아있는 타일(=땅) 찾기. drillBottomY = 드릴 sprite의 시각적 바닥.
