@@ -13,6 +13,7 @@ import { BossTracker } from '../systems/BossTracker.js';
 import { ArenaSystem } from '../systems/ArenaSystem.js';
 import { CooldownManager } from '../systems/CooldownManager.js';
 import { SoundManager } from '../systems/SoundManager.js';
+import { RemoteTrigger } from '../systems/RemoteTrigger.js';
 
 const DRILLER_TILE_X = 6;
 
@@ -67,6 +68,10 @@ export class GameScene extends Phaser.Scene {
       arenaSystem: this.arenaSystem,
     });
     this.triggerSystem.bossTracker = this.bossTracker;
+
+    // 외부 트리거 브리지 — 서버가 실행 중이면 자동 연결, 아니면 silently retry.
+    this.remoteTrigger = new RemoteTrigger(this.triggerSystem);
+    this.remoteTrigger.connect();
 
     // 카메라 follow
     this.cameras.main.setBounds(0, -GAME.height, GAME.width, Number.MAX_SAFE_INTEGER);
