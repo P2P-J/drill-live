@@ -54,6 +54,7 @@ curl -X POST http://localhost:8080/like-batch \
 |---|---|---|
 | POST | `/trigger` | `{triggerId, donor?}` — 단일 트리거 발사 |
 | POST | `/like-batch` | `{donors: [...]}` — LIKE 트리거 N개 발사 |
+| POST | `/overlay` | `{kind, name, amount?, tier?, text?}` — 화면 표시 전용 (게임 영향 없음) |
 | GET | `/status` | 연결된 클라이언트 수 + 유효 triggerId 목록 |
 | WS | `/ws` | 게임 클라이언트가 연결. 트리거 이벤트 push 수신 |
 
@@ -130,3 +131,44 @@ npm run yt -- @MyChannel
 - `BRIDGE_URL` — 트리거 브리지 URL (기본 `http://localhost:8080`)
 - `YOUTUBE_LIVE_ID` — CLI 인자 대신 사용
 - `YT_POLL_MS` — 채팅 폴링 간격 ms (기본 4000)
+
+---
+
+## 시청자 이벤트 화면 표시 (overlay)
+
+신규 구독, LIKE, 슈퍼챗·멤버십을 게임 화면에 닉네임과 함께 표시.
+
+- **SUB / MEMBER / SUPERCHAT**: 화면 중앙 상단 팝업 (2.5초)
+- **LIKE**: 좌측 하단 피드 (최대 6개, 4초 자동 fade)
+
+LIKE는 서버에서 동일 닉네임 5초 dedupe + 초당 10개 throttle (overlay만, 게임 트리거는 영향 없음).
+
+### 수동 테스트
+```bash
+npm run fire overlay SUB NewbieFox
+npm run fire overlay LIKE CoolGuy
+npm run fire overlay SUPERCHAT Whale99 5 DIAMOND
+npm run fire overlay MEMBER VIP123 4.99
+```
+
+### Streamer.bot 연동 (신규 구독 / LIKE)
+
+YouTube의 신규 구독/LIKE는 youtube-chat 라이브러리로 받을 수 없음. Streamer.bot에서 이벤트를 잡아 `POST /overlay`로 전달.
+
+1. Streamer.bot → **Actions** → New: "YouTube Sub Overlay"
+   - **Trigger**: YouTube → User Subscribed (또는 New Member)
+   - **Sub-Action**: HTTP Request
+     - URL: `http://localhost:8080/overlay`
+     - Method: POST
+     - Headers: `Content-Type: application/json`
+     - Body: `{"kind":"SUB","name":"%user%"}`
+2. 같은 방식으로 "YouTube Like":
+   - Trigger: YouTube → Like (or 비슷한 이름)
+   - Body: `{"kind":"LIKE","name":"%user%"}`
+3. 멤버십:
+   - Trigger: YouTube → New Member / Member Milestone
+   - Body: `{"kind":"MEMBER","name":"%user%","amount":4.99}`
+
+> `%user%` 같은 변수명은 Streamer.bot 버전마다 다를 수 있음. 실제 트리거 변수 패널에서 닉네임에 해당하는 토큰으로 치환.
+
+슈퍼챗은 `youtube-bridge.js`가 자동으로 `/overlay`도 호출하므로 Streamer.bot 설정 불필요.
