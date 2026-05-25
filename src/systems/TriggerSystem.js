@@ -17,10 +17,13 @@ export function randomDonor() {
 }
 
 export const TRIGGER_DEFS = {
-  // 폭발 계열 — 위에서 TNT 떨어져서 폭발
-  BOMB:       { type: 'bomb', radius: 1.6, color: 0xFF9800, tntScale: 0.9,  priceLabel: '$1',  label: 'BOMB' },
-  ULTRA_BOMB: { type: 'bomb', radius: 2.6, color: 0xF44336, tntScale: 1.2,  priceLabel: '$3',  label: 'ULTRA BOMB' },
-  MEGA_BLAST: { type: 'bomb', radius: 3.6, color: 0xD32F2F, tntScale: 1.5,  priceLabel: '$5',  label: 'MEGA BLAST' },
+  // 채팅 — 가장 작은 TNT 한 개 (`!bomb` 무료, 별도 쿨다운 없음)
+  CHAT_BOMB:  { type: 'bomb', radius: 1.2, color: 0xFFC107, tntScale: 0.7,  priceLabel: 'CHAT', label: 'BOMB' },
+
+  // 후원 폭발 계열
+  BOMB:       { type: 'bomb', radius: 1.8, color: 0xFF9800, tntScale: 0.9,  priceLabel: '$1',  label: 'ULTRA BOMB' },
+  ULTRA_BOMB: { type: 'bomb', radius: 2.6, color: 0xF44336, tntScale: 1.2,  priceLabel: '$3',  label: 'MEGA BOMB' },
+  MEGA_BLAST: { type: 'bomb', radius: 3.6, color: 0xD32F2F, tntScale: 1.5,  priceLabel: '$5',  label: 'GIGA BLAST' },
   NUKE:       { type: 'bomb', radius: 6.0, color: 0xE91E63, tntScale: 2.0,  priceLabel: '$20', label: 'NUKE',     shake: 0.025 },
 
   // 좋아요 — 가장 작은 TNT, 3초 sizzle, 좋아요 누른 사람 이름 표시 (sizzle 중 추가됨)
@@ -40,13 +43,18 @@ export const TRIGGER_DEFS = {
   // 범위 확장 (이미 SPACE로 구현된 것)
   RANGE_UP:   { type: 'buff', buffId: 'drillRangeUp', params: { bonus: 2, label: 'RANGE UP!' }, durationMs: 10000, priceLabel: 'SC', label: 'RANGE UP', color: 0xFF9800 },
 
-  // 채팅 (전체 채널 쿨다운 30초)
-  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 30000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
+  // 채팅 (전체 채널 쿨다운 10초)
+  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 10000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
 
   // 신규 구독 — 드릴 아래 10줄을 현재 바이옴 특수 광물로 가득 채움
   SUB:        { type: 'special', action: 'subscribe', priceLabel: 'SUB', label: 'NEW SUB!', color: 0xF06292 },
 
-  // 스트리머 전용 (spec 5-3) — youtube-bridge에서 owner/moderator만 발동 가능
+  // 채팅 업그레이드 — 골드 차감해서 30초 임시 +1 (자동 구매 없음, 채팅으로만)
+  UPGRADE_POWER:  { type: 'special', action: 'upgradePower',  priceLabel: '!power',  label: 'POWER UP!',  color: 0x4CAF50 },
+  UPGRADE_RANGE:  { type: 'special', action: 'upgradeRange',  priceLabel: '!range',  label: 'RANGE UP!',  color: 0xFF9800 },
+  UPGRADE_ENGINE: { type: 'special', action: 'upgradeEngine', priceLabel: '!engine', label: 'ENGINE UP!', color: 0x03A9F4 },
+
+  // 스트리머 전용 — youtube-bridge에서 owner/moderator만 발동 가능
   RESET:      { type: 'special', action: 'reset',   priceLabel: '!reset',   label: 'NEW MAP!', color: 0xFFFFFF },
   JACKPOT:    { type: 'special', action: 'jackpot', priceLabel: '!jackpot', label: 'JACKPOT!', color: 0xFFD700 },
 };
@@ -61,6 +69,7 @@ export class TriggerSystem {
     this.oreLayer = deps.oreLayer;
 
     this.soundManager = deps.soundManager;
+    this.upgradeSystem = deps.upgradeSystem;
     this.explosionEffect = new ExplosionEffect(scene, this.tileMap, this.soundManager, this.driller);
     this.cooldownManager = deps.cooldownManager;
     this._listeners = new Map();
@@ -111,10 +120,20 @@ export class TriggerSystem {
 
   _handleSpecial(def, donor) {
     switch (def.action) {
-      case 'reset':     return this._doReset();
-      case 'jackpot':   return this._doJackpot();
-      case 'subscribe': return this._doSubscribe(donor);
+      case 'reset':         return this._doReset();
+      case 'jackpot':       return this._doJackpot();
+      case 'subscribe':     return this._doSubscribe(donor);
+      case 'upgradePower':  return this._doChatUpgrade('drillPower', donor);
+      case 'upgradeRange':  return this._doChatUpgrade('drillRange', donor);
+      case 'upgradeEngine': return this._doChatUpgrade('engine', donor);
     }
+  }
+
+  // 채팅 업그레이드 — UpgradeSystem.tryChatUpgrade 호출. 성공 시 'upgrade' 이벤트 emit.
+  _doChatUpgrade(name, donor) {
+    if (!this.upgradeSystem) return;
+    const result = this.upgradeSystem.tryChatUpgrade(name);
+    this._emit('upgrade-attempt', { name, donor, result });
   }
 
   // 신규 구독 — 드릴 바로 아래 10줄(전 채굴 폭)을 현재 바이옴 특수 광물로 채움

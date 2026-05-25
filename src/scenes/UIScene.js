@@ -83,11 +83,18 @@ export class UIScene extends Phaser.Scene {
 
   _refreshStats() {
     if (!this.upgradeSystem) return;
-    const ups = this.upgradeSystem.state.upgrades;
     for (const row of this._statRows ?? []) {
-      const lv = ups[row.key] ?? 1;
-      row.value.setText(`Lv ${lv}/${row.maxLv}`);
+      const lv = this.upgradeSystem.getLevel(row.key);
+      // POWER 행은 드릴 이름 표시 (Wood Drill / Stone Drill / Iron Drill / Gold Drill / Diamond Drill)
+      if (row.key === 'drillPower') {
+        row.value.setText(this.upgradeSystem.getDrillName());
+      } else {
+        row.value.setText(`Lv ${lv}/${row.maxLv}`);
+      }
       row.barFill.scaleX = Math.min(1, lv / row.maxLv);
+      // 임시 업그레이드 활성 시 잔여시간 비율로 라벨 색 강조 (임시 = 30초 카운트다운)
+      const tempFrac = this.upgradeSystem.remainingFrac(row.key);
+      row.label.setColor(tempFrac > 0 ? '#FFEB3B' : '#FFFFFF');
     }
     // SPEED = drillPower 누적 × drillPowerUp 버프 (= 드릴 속도 실효 배율)
     const baseMult = this.upgradeSystem.getDrillSpeedMult?.() ?? 1.0;
@@ -95,9 +102,10 @@ export class UIScene extends Phaser.Scene {
     const dpu = this.buffSystem?.get?.('drillPowerUp');
     if (dpu) buffMult *= dpu.params.mult ?? 1.0;
     const effective = baseMult * buffMult;
-    this.statSpeedValue.setText(`×${effective.toFixed(1)}`);
-    // 버프 활성 시 빨간 강조
-    this.statSpeedValue.setColor(buffMult > 1.001 ? '#FF5252' : '#FFEB3B');
+    this.statSpeedValue.setText(`×${effective.toFixed(2)}`);
+    // 버프 또는 임시 업그레이드 활성 시 빨간 강조
+    const anyActive = buffMult > 1.001 || this.upgradeSystem.getLevel('drillPower') > 1;
+    this.statSpeedValue.setColor(anyActive ? '#FF5252' : '#FFEB3B');
   }
 
   _buildAnnouncement() {
@@ -308,9 +316,15 @@ export class UIScene extends Phaser.Scene {
       this.goldText.setText(`${g.toLocaleString()} G`);
     });
 
-    gameState.on('upgrade', ({ name, level }) => {
-      this._pushEvent(`Upgrade: ${name} Lv ${level}`, '');
-    });
+    // 채팅 임시 업그레이드 — 시청자가 골드 차감해서 30초 buff 발동
+    if (this.upgradeSystem) {
+      this.upgradeSystem.on('upgrade', ({ name, level, cost }) => {
+        this._pushEvent(`${name} → Lv ${level}!`, `-${cost.toLocaleString()} G (30s)`);
+      });
+      this.upgradeSystem.on('revert', ({ name }) => {
+        this._pushEvent(`${name} reverted`, 'to Lv 1');
+      });
+    }
 
     // 버프 적용 시 인디케이터 추가 (버프=우측 / 디버프=좌측)
     if (this.buffSystem) {

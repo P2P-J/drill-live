@@ -6,6 +6,7 @@ export const BIOMES = [
     id: 'earth',
     name: 'Earth',
     emoji: '🌍',
+    hardness: 1.0,   // 채굴 속도 분모 — 깊은 바이옴일수록 1보다 커서 더 오래 걸림
     startKm: 0,
     endKm: 9999,
     layers: [
@@ -20,6 +21,7 @@ export const BIOMES = [
   },
   {
     id: 'crystal',
+    hardness: 1.5,
     name: 'Crystal Cave',
     emoji: '🔮',
     startKm: 9999,
@@ -34,6 +36,7 @@ export const BIOMES = [
   },
   {
     id: 'abyssal',
+    hardness: 2.2,
     name: 'Abyssal Sea',
     emoji: '🌊',
     startKm: 49999,
@@ -48,6 +51,7 @@ export const BIOMES = [
   },
   {
     id: 'forest',
+    hardness: 3.0,
     name: 'Ancient Forest',
     emoji: '🌿',
     startKm: 99999,
@@ -62,6 +66,7 @@ export const BIOMES = [
   },
   {
     id: 'magma',
+    hardness: 4.0,
     name: 'Magma Core',
     emoji: '🔥',
     startKm: 499999,
@@ -76,6 +81,7 @@ export const BIOMES = [
   },
   {
     id: 'void',
+    hardness: 5.0,
     name: 'Void',
     emoji: '⭐',
     startKm: 999999,

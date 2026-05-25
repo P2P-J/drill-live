@@ -6,7 +6,6 @@ import { TileMap } from '../objects/TileMap.js';
 import { Driller } from '../objects/Driller.js';
 import { gameState } from '../systems/GameState.js';
 import { UpgradeSystem } from '../systems/UpgradeSystem.js';
-import { UPGRADE_ORDER } from '../config/upgrades.js';
 import { BuffSystem } from '../systems/BuffSystem.js';
 import { TriggerSystem, TRIGGER_DEFS } from '../systems/TriggerSystem.js';
 import { CooldownManager } from '../systems/CooldownManager.js';
@@ -24,7 +23,7 @@ export class GameScene extends Phaser.Scene {
     this.biomeManager = new BiomeManager();
     this.oreLayer = new OreLayer(this.biomeManager);
     this.tileMap = new TileMap(this, this.biomeManager, this.oreLayer);
-    this.upgradeSystem = new UpgradeSystem(gameState);
+    this.upgradeSystem = new UpgradeSystem(this, gameState);
     this.buffSystem = new BuffSystem(this);
     this.soundManager = new SoundManager(this);
 
@@ -55,6 +54,7 @@ export class GameScene extends Phaser.Scene {
       oreLayer: this.oreLayer,
       cooldownManager: this.cooldownManager,
       soundManager: this.soundManager,
+      upgradeSystem: this.upgradeSystem,
     });
 
     // 외부 트리거 브리지 — 서버가 실행 중이면 자동 연결, 아니면 silently retry.
@@ -94,19 +94,12 @@ export class GameScene extends Phaser.Scene {
       this.tileMap.update(this.driller.y);
     });
 
-    // R: drillRange 토글 (1 → 2 → 3 → 1)
-    this.input.keyboard.on('keydown-R', () => {
-      const curr = gameState.upgrades.drillRange;
-      const next = curr >= 3 ? 1 : curr + 1;
-      gameState.setUpgrade('drillRange', next);
-    });
-
-    // P: drillPower 토글 (1 → 5 → 1)
-    this.input.keyboard.on('keydown-P', () => {
-      const curr = gameState.upgrades.drillPower;
-      const next = curr >= 5 ? 1 : curr + 1;
-      gameState.setUpgrade('drillPower', next);
-    });
+    // R: drillRange 채팅 업그레이드 시뮬레이션 (UPGRADE_RANGE 트리거)
+    this.input.keyboard.on('keydown-R', () => this.triggerSystem.fire('UPGRADE_RANGE'));
+    // P: drillPower 채팅 업그레이드 시뮬레이션 (UPGRADE_POWER 트리거)
+    this.input.keyboard.on('keydown-P', () => this.triggerSystem.fire('UPGRADE_POWER'));
+    // U: engine 채팅 업그레이드 시뮬레이션 (UPGRADE_ENGINE 트리거)
+    this.input.keyboard.on('keydown-U', () => this.triggerSystem.fire('UPGRADE_ENGINE'));
 
     // SPACE: 후원 시뮬레이션 — DRILL RANGE +2, 10초 (드릴이 커지고 반경 확장)
     this.input.keyboard.on('keydown-SPACE', () => {
@@ -147,6 +140,7 @@ export class GameScene extends Phaser.Scene {
 
   update(_time, delta) {
     this.buffSystem.update();
+    this.upgradeSystem.update();
     this.driller.update(delta);
     this.tileMap.update(this.driller.y);
     this.triggerSystem.explosionEffect.step(delta);
@@ -162,26 +156,6 @@ export class GameScene extends Phaser.Scene {
       this.bg.setFillStyle(darken(biomeColor, 0.25));
     }
 
-    // 자동 업그레이드 — 가장 저렴한 구매 가능 항목을 매 0.4초마다 1개씩 구매
-    this._autoBuyTimer = (this._autoBuyTimer ?? 0) + delta;
-    if (this._autoBuyTimer >= 400) {
-      this._autoBuyTimer = 0;
-      this._autoBuyCheapest();
-    }
-  }
-
-  _autoBuyCheapest() {
-    let cheapest = null;
-    let cheapestCost = Infinity;
-    for (const name of UPGRADE_ORDER) {
-      const cost = this.upgradeSystem.nextCost(name);
-      if (cost === null) continue;
-      if (this.upgradeSystem.canBuy(name) && cost < cheapestCost) {
-        cheapest = name;
-        cheapestCost = cost;
-      }
-    }
-    if (cheapest) this.upgradeSystem.buy(cheapest);
   }
 }
 

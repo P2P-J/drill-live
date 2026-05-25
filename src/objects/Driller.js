@@ -81,9 +81,9 @@ export class Driller {
     this.drillSpeedMult = drillSpeedMult;
     this.engineMult = engineMult;
 
-    // 드릴 파워 단계별 색 변화 (명세서: 목재→돌→철→금→다이아)
+    // 드릴 파워 단계별 색 변화 (Wood→Stone→Iron→Gold→Diamond)
     // PNG 본체 색이 살아있도록 옅은 틴트만 — 비트(실버)에 더 또렷이 반영됨.
-    const drillPowerLv = this.upgradeSystem.state.upgrades.drillPower ?? 1;
+    const drillPowerLv = this.upgradeSystem.getLevel?.('drillPower') ?? 1;
     if (drillPowerLv !== this._lastDrillPowerLv) {
       this._lastDrillPowerLv = drillPowerLv;
       const tints = [
@@ -198,7 +198,9 @@ export class Driller {
         this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.62 });
       }
       this.isMining = true;
-      this.mineProgress += dt * this.drillSpeedMult;
+      // 채굴 진행 — 바이옴 hardness가 분모 (깊이 갈수록 더 오래 걸림)
+      const hardness = this._currentBiomeHardness();
+      this.mineProgress += (dt * this.drillSpeedMult) / hardness;
 
       // 크랙 단계 갱신 — 깨질 범위 (반원) 전체에 크랙 표시 (0 → 4)
       const crackStage = Math.min(4, Math.floor((this.mineProgress / GAME.minePerTileSeconds) * 5));
@@ -396,6 +398,15 @@ export class Driller {
 
   getTileY() {
     return Math.floor(this.y / this.tileSize);
+  }
+
+  // 현재 바이옴의 채굴 hardness — 깊은 바이옴일수록 1보다 커서 같은 드릴 파워로도 더 오래 걸림
+  _currentBiomeHardness() {
+    const bm = this.tileMap?.biomeManager;
+    if (!bm) return 1.0;
+    const km = bm.yToKm(this.y);
+    const biome = bm.getBiomeAt(km);
+    return biome?.hardness ?? 1.0;
   }
 
   // 폭탄 폭발로부터 드릴 넉백. ExplosionEffect에서 거리/반경 기반으로 호출.

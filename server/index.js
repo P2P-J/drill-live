@@ -15,13 +15,15 @@ const PORT = process.env.PORT || 8080;
 
 // TRIGGER_IDS — TriggerSystem.TRIGGER_DEFS와 일치해야 함. 잘못된 ID 거부용.
 const VALID_TRIGGER_IDS = new Set([
-  'BOMB', 'ULTRA_BOMB', 'MEGA_BLAST', 'NUKE',
+  'CHAT_BOMB',                                    // 채팅 !bomb
+  'BOMB', 'ULTRA_BOMB', 'MEGA_BLAST', 'NUKE',     // 후원 폭발 4종
   'LIKE',
   'DRILL_UP', 'TURBO', 'OVERDRIVE',
   'GOLD_RUSH', 'GEM_DROP', 'DIAMOND', 'SPECIAL',
   'RANGE_UP', 'FAST',
   'SUB',
-  'RESET', 'JACKPOT',  // 스트리머 전용
+  'UPGRADE_POWER', 'UPGRADE_RANGE', 'UPGRADE_ENGINE',   // 채팅 업그레이드 (임시 30초)
+  'RESET', 'JACKPOT',                                   // 스트리머 전용
 ]);
 
 const app = express();

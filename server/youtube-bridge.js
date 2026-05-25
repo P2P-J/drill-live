@@ -91,7 +91,11 @@ function messageText(msg) {
 
 // 누구나 쓸 수 있는 채팅 트리거
 const CHAT_COMMANDS = {
-  '!fast': 'FAST',
+  '!fast': 'FAST',           // 드릴 ×1.5 / 10초 (채널 쿨다운 10초)
+  '!bomb': 'CHAT_BOMB',      // 가장 작은 TNT 한 개
+  '!power': 'UPGRADE_POWER',   // 드릴 파워 +1 (30초)
+  '!range': 'UPGRADE_RANGE',   // 드릴 범위 +1 (30초)
+  '!engine': 'UPGRADE_ENGINE', // 엔진 +1 (30초)
 };
 // 스트리머/모더레이터만 쓸 수 있는 명령어
 const STREAMER_COMMANDS = {

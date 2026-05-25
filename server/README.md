@@ -102,8 +102,12 @@ npm run yt -- @MyChannel
 
 **키워드 (메시지 안에 포함)**: `nuke`, `special`, `diamond`, `overdrive`, `range`, `gem`, `turbo`, `mega`, `gold`, `ultra`, `drill`, `bomb`. 단, 결제 금액 한도 안의 트리거만 허용 (시청자가 더 비싼 효과 강요 불가).
 
-**채팅 명령어**:
-- `!fast` → FAST 트리거 (누구나)
+**채팅 명령어 (누구나)**:
+- `!bomb` → CHAT_BOMB (가장 작은 TNT, 무료)
+- `!fast` → FAST (드릴 ×1.5 / 10초, 채널 쿨다운 10초)
+- `!power` → UPGRADE_POWER (드릴 파워 +1 Lv, 30초 임시. 골드 차감)
+- `!range` → UPGRADE_RANGE (드릴 범위 +1 Lv, 30초 임시)
+- `!engine` → UPGRADE_ENGINE (엔진 +1 Lv, 30초 임시)
 
 **스트리머 전용** (owner/moderator만 — 환경변수 `STREAMER_CHANNEL_ID`로 특정 채널 ID 강제 가능):
 - `!reset` → RESET (새 맵 생성)
