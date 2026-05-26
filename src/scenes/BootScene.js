@@ -6,10 +6,16 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // 드릴 텍스처 두 종 — 'driller'(평소, drill-rush.png) + 'driller-cry'(폭발 넉백 시).
-    // 크기는 Driller가 setTexture 후 baseScale 재계산해서 동일 화면 크기로 정규화.
-    this.load.image('driller', '/assets/drill-rush.png');
-    this.load.image('driller-cry', '/assets/drill-cry.png');
+    // 기본(rush) — 채팅 컨셉 미지정 시 사용. normal/hurt 두 상태.
+    this.load.image('driller',       '/assets/drill-rush.png');
+    this.load.image('driller-cry',   '/assets/drill-cry.png');
+    // 5개 컨셉 (wood/stone/iron/gold/diamond) × normal/hurt
+    // Driller가 setTexture 후 baseScale 재계산해서 동일 화면 크기로 정규화하므로
+    // 원본 PNG 크기가 달라도 OK.
+    for (const c of ['wood', 'stone', 'iron', 'gold', 'diamond']) {
+      this.load.image(`drill-${c}`,      `/assets/drill_v3_${c}_normal_final.png`);
+      this.load.image(`drill-${c}-hurt`, `/assets/drill_v3_${c}_hurt_final.png`);
+    }
 
     // 사운드는 manifest 기반으로 lazy load. /assets/audio/manifest.json에
     // 등록된 키만 시도해서 404 noise 방지. (없으면 procedural fallback).

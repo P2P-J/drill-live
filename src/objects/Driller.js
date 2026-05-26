@@ -35,7 +35,9 @@ export class Driller {
     // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
     // 목표: 기본 상태에서 드릴 폭 ≈ 256px (4 타일). 큰 PNG여도 자동 축소.
     this._targetWidth = 256;
-    this._currentMood = 'rush';
+    this._concept = 'rush';   // 'rush' | 'wood' | 'stone' | 'iron' | 'gold' | 'diamond'
+    this._state = 'normal';   // 'normal' | 'hurt'
+    this._conceptResetTimer = null;
     this._recomputeBaseScale();
     this.sprite.setScale(this._baseScale);
 
@@ -417,28 +419,70 @@ export class Driller {
       duration: 90, yoyo: true,
       ease: 'Quad.easeOut',
     });
-    // 부상 표정 — cry 텍스처로 전환, 350ms 후 평소(rush)로 복귀
-    this.setMood('cry');
-    this.scene.time.delayedCall(350, () => this.setMood('rush'));
+    // 부상 표정 — 현재 컨셉의 hurt 텍스처로 350ms, 자동 normal 복귀
+    this.setHurt();
   }
 
-  // 텍스처 전환 (rush ↔ cry). 새 텍스처의 native 크기에 맞춰 scale 재계산해서
-  // 두 이미지 크기가 달라도 동일한 화면 크기로 정규화.
-  setMood(mood) {
-    if (this._currentMood === mood) return;
-    const key = mood === 'cry' ? 'driller-cry' : 'driller';
-    if (!this.scene.textures.exists(key)) return;
-    this._currentMood = mood;
+  // 채팅 컨셉 변경 (wood/stone/iron/gold/diamond) — 3초 유지 후 rush 복귀
+  // 같은 컨셉이 다시 들어오면 타이머만 리프레시.
+  setConcept(concept) {
+    const valid = ['rush', 'wood', 'stone', 'iron', 'gold', 'diamond'];
+    if (!valid.includes(concept)) return;
+    if (this._concept === concept) {
+      this._resetConceptTimer();
+      return;
+    }
+    this._concept = concept;
+    this._applyTexture();
+    if (concept !== 'rush') this._resetConceptTimer();
+  }
+
+  _resetConceptTimer() {
+    if (this._conceptResetTimer) this._conceptResetTimer.remove();
+    this._conceptResetTimer = this.scene.time.delayedCall(3000, () => {
+      this._concept = 'rush';
+      this._applyTexture();
+      this._conceptResetTimer = null;
+    });
+  }
+
+  // 폭탄 부딪침 — 현재 컨셉의 hurt 텍스처로 350ms, 자동 normal 복귀
+  setHurt() {
+    this._state = 'hurt';
+    this._applyTexture();
+    this.scene.time.delayedCall(350, () => {
+      this._state = 'normal';
+      this._applyTexture();
+    });
+  }
+
+  // 현재 concept + state에 맞는 텍스처 적용 + native 크기 정규화
+  _applyTexture() {
+    const keys = {
+      rush:    { normal: 'driller',         hurt: 'driller-cry' },
+      wood:    { normal: 'drill-wood',      hurt: 'drill-wood-hurt' },
+      stone:   { normal: 'drill-stone',     hurt: 'drill-stone-hurt' },
+      iron:    { normal: 'drill-iron',      hurt: 'drill-iron-hurt' },
+      gold:    { normal: 'drill-gold',      hurt: 'drill-gold-hurt' },
+      diamond: { normal: 'drill-diamond',   hurt: 'drill-diamond-hurt' },
+    };
+    let key = keys[this._concept]?.[this._state];
+    // 텍스처 없으면 normal 폴백 → rush 폴백
+    if (!key || !this.scene.textures.exists(key)) {
+      key = keys[this._concept]?.normal;
+    }
+    if (!key || !this.scene.textures.exists(key)) {
+      key = 'driller';
+    }
     this.sprite.setTexture(key);
-    this._recomputeBaseScale();
-    // 현재 drillRange 배율 유지
+    this._recomputeBaseScale(key);
     const mult = 1.0 + (this.drillRange - 1) * 0.55;
     this.sprite.setScale(this._baseScale * mult);
   }
 
-  _recomputeBaseScale() {
-    const key = this._currentMood === 'cry' ? 'driller-cry' : 'driller';
-    const srcImg = this.scene.textures.get(key)?.getSourceImage?.();
+  _recomputeBaseScale(key) {
+    const useKey = key ?? 'driller';
+    const srcImg = this.scene.textures.get(useKey)?.getSourceImage?.();
     const naturalW = (srcImg && srcImg.width) || 64;
     this._baseScale = this._targetWidth / naturalW;
   }

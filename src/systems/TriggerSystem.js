@@ -135,10 +135,15 @@ export class TriggerSystem {
     return { ok: true };
   }
 
-  // 드릴 직접 지정 (wood/stone/iron/gold/diamond) — 현재 비활성 (시각/효과 없음)
-  // 채팅 명령은 받지만 게임에 아무 반응 없도록 silently no-op.
-  _doSetDrill(_targetLv, _donor) {
-    return { ok: false, reason: 'disabled' };
+  // 드릴 컨셉 변경 (wood/stone/iron/gold/diamond) — 3초 유지 후 rush 복귀.
+  // 무료 (골드 차감 없음), 같은 컨셉 채팅이 또 오면 타이머 리프레시 (setConcept 내부에서).
+  _doSetDrill(targetLv, _donor) {
+    if (!this.driller) return { ok: false };
+    const conceptMap = { 1: 'wood', 2: 'stone', 3: 'iron', 4: 'gold', 5: 'diamond' };
+    const concept = conceptMap[targetLv];
+    if (!concept) return { ok: false };
+    this.driller.setConcept(concept);
+    return { ok: true };
   }
 
   // 범위/엔진 — 다음 Lv로 단계 증가.
