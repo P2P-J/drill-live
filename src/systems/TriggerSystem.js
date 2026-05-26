@@ -243,10 +243,12 @@ export class TriggerSystem {
     });
   }
 
-  _handleBomb(def) {
+  _handleBomb(def, donor) {
     const drillScale = this.driller.sprite?.scaleY ?? 1.0;
     const baseY = this.driller.y + 64 * drillScale;
     const count = def.count ?? 1;
+    // TNT 라벨 = 후원자 닉네임 (라이브에서 시청자 이름 보임). donor 없으면 트리거 라벨 fallback.
+    const tntLabel = donor ?? def.label;
 
     // 반경에 따라 폭발 사운드 결정 (TNT 낙하 시 안 울리고, 폭발 순간 ExplosionEffect가 재생)
     const explosionSound =
@@ -275,7 +277,7 @@ export class TriggerSystem {
         this.explosionEffect.drop(dropX, baseY, {
           radius: def.radius,
           color: def.color,
-          label: def.label,
+          label: tntLabel,
           tntScale: def.tntScale,
           shake: def.shake ?? 0.012,
           explosionSound,

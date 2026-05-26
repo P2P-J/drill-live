@@ -84,8 +84,10 @@ export class ExplosionEffect {
 
     const labelText = this.scene.add.text(targetX, startY, label, {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: `${Math.floor(16 * tntScale)}px`,
-      color: '#000000',
+      fontSize: `${Math.floor(18 * tntScale)}px`,
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 5,
     }).setOrigin(0.5, -1.0).setDepth(81);
 
     // 좋아요/후원자 이름 표시 (TNT 위쪽에 떠 있음) — 흰색 + 검정 테두리
