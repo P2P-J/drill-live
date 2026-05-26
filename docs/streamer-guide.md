@@ -147,15 +147,15 @@
 - **골드 부족** → silently fail (알림 없음)
 - **다운그레이드 시도** (iron 상태에서 `!stone`) → 무시
 
-### 드릴 이름 + 색상 (Drill Power Lv 별)
+### 드릴 이름 + 색상 + 크기 (Drill Power Lv 별)
 
-| Lv | 이름 | 색 (PNG 위 미세 틴트) |
-|---|---|---|
-| 1 | **Wood Drill** | 흰색 (기본) |
-| 2 | **Stone Drill** | 옅은 회색 |
-| 3 | **Iron Drill** | 푸른 회색 |
-| 4 | **Gold Drill** | 옅은 노랑 |
-| 5 | **Diamond Drill** | 옅은 시안 |
+| Lv | 이름 | 색상 (sprite tint) | 크기 배율 |
+|---|---|---|---|
+| 1 | **Wood Drill**    | 흰색 (기본)       | ×1.00 |
+| 2 | **Stone Drill**   | 진한 회색         | ×1.05 |
+| 3 | **Iron Drill**    | 강철 푸른빛       | ×1.10 |
+| 4 | **Gold Drill**    | 선명한 금색       | ×1.15 |
+| 5 | **Diamond Drill** | 선명한 시안       | ×1.22 |
 
 UI 우측 상단 DRILL STATS 패널의 POWER 행에 **이름이 그대로 표시됨**.
 
