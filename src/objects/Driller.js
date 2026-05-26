@@ -111,7 +111,9 @@ export class Driller {
   // baseScale (텍스처 크기 보정) × rangeMultiplier 로 최종 scale 계산.
   // baseScale이 커진 만큼(5x) rangeMultiplier는 줄여서 13타일 채널 안에 머물게 함.
   _tweenScaleForRange(range) {
-    const mult = 1.0 + (range - 1) * 0.55;
+    // 컨셉별 scaleMult를 곱해서 어떤 드릴이든 동일한 비율로 커지게
+    const scaleMult = this._currentConceptScaleMult();
+    const mult = (1.0 + (range - 1) * 0.55) * scaleMult;
     const targetScale = (this._baseScale ?? 1.0) * mult;
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
@@ -457,6 +459,9 @@ export class Driller {
   }
 
   // 현재 concept + state에 맞는 텍스처 적용 + native 크기 정규화
+  // 컨셉별 시각 보정: drill-rush(1024×1536)는 캔버스 꽉 참, drill_v3_*(1248×1248)는
+  // 정사각이라 시각적으로 작고 origin도 다름. scaleMult/originY로 맞춤.
+  // 미세조정: 아래 CONCEPT_VISUAL_TUNE 값만 수정하면 됨.
   _applyTexture() {
     const keys = {
       rush:    { normal: 'driller',         hurt: 'driller-cry' },
@@ -466,17 +471,28 @@ export class Driller {
       gold:    { normal: 'drill-gold',      hurt: 'drill-gold-hurt' },
       diamond: { normal: 'drill-diamond',   hurt: 'drill-diamond-hurt' },
     };
+    // scaleMult: 시각적 크기 보정 (drill-rush 기준 1.0)
+    // originY:   anchor 위치 (sprite 안에서 비트 끝 y 비율). 클수록 sprite가 anchor 위쪽으로 그려져 땅 위로 떠 보임.
+    const CONCEPT_VISUAL_TUNE = {
+      rush:    { scaleMult: 1.00, originY: 0.70 },
+      wood:    { scaleMult: 1.50, originY: 0.88 },
+      stone:   { scaleMult: 1.50, originY: 0.88 },
+      iron:    { scaleMult: 1.50, originY: 0.88 },
+      gold:    { scaleMult: 1.50, originY: 0.88 },
+      diamond: { scaleMult: 1.50, originY: 0.88 },
+    };
     let key = keys[this._concept]?.[this._state];
-    // 텍스처 없으면 normal 폴백 → rush 폴백
     if (!key || !this.scene.textures.exists(key)) {
       key = keys[this._concept]?.normal;
     }
     if (!key || !this.scene.textures.exists(key)) {
       key = 'driller';
     }
+    const tune = CONCEPT_VISUAL_TUNE[this._concept] ?? CONCEPT_VISUAL_TUNE.rush;
     this.sprite.setTexture(key);
+    this.sprite.setOrigin(0.5, tune.originY);
     this._recomputeBaseScale(key);
-    const mult = 1.0 + (this.drillRange - 1) * 0.55;
+    const mult = (1.0 + (this.drillRange - 1) * 0.55) * tune.scaleMult;
     this.sprite.setScale(this._baseScale * mult);
   }
 
@@ -485,5 +501,13 @@ export class Driller {
     const srcImg = this.scene.textures.get(useKey)?.getSourceImage?.();
     const naturalW = (srcImg && srcImg.width) || 64;
     this._baseScale = this._targetWidth / naturalW;
+  }
+
+  // 현재 컨셉의 scaleMult — _applyTexture와 _tweenScaleForRange가 공유
+  _currentConceptScaleMult() {
+    const tunes = {
+      rush: 1.00, wood: 1.50, stone: 1.50, iron: 1.50, gold: 1.50, diamond: 1.50,
+    };
+    return tunes[this._concept] ?? 1.0;
   }
 }
