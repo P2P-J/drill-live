@@ -7,7 +7,7 @@ import { OverlaySystem } from '../systems/OverlaySystem.js';
 
 const INVENTORY_X = 6;
 const INVENTORY_W = 96;
-const INVENTORY_TOP = 220;
+const INVENTORY_TOP = 260;
 
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
@@ -49,7 +49,7 @@ export class UIScene extends Phaser.Scene {
   _buildStatsPanel() {
     const w = 270, h = 142;
     const x = GAME.width - w - 12;
-    const y = 210;
+    const y = 250;
     const bg = this.add.rectangle(x, y, w, h, 0x000000, 0.65).setOrigin(0, 0).setStrokeStyle(2, 0xFFD700, 0.65);
     const title = this.add.text(x + w / 2, y + 4, 'DRILL STATS', {
       fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFD700',
@@ -190,8 +190,8 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    this.buffArea   = { x: GAME.width - 290, y: 370, w: 270 };
-    this.debuffArea = { x: 116,              y: 370, w: 300 };
+    this.buffArea   = { x: GAME.width - 290, y: 410, w: 270 };
+    this.debuffArea = { x: 116,              y: 410, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -220,32 +220,32 @@ export class UIScene extends Phaser.Scene {
     this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });
   }
 
-  // ── 상단: DEPTH 가운데 + 6개 바이옴 진행 트래커 + 현재 바이옴 이름 + GOLD ──
+  // ── 상단: DEPTH + GOLD (한 줄) → 6개 바이옴 박스 → 현재 바이옴 이름 ──
   _buildTopHud() {
-    const barH = 200;
+    const barH = 240;
     this.add.rectangle(0, 0, GAME.width, barH, 0x0A0E1A, 0.85).setOrigin(0, 0);
     this.add.rectangle(0, barH - 4, GAME.width, 4, 0xFFD700, 1.0).setOrigin(0, 0);
 
     // DEPTH 라벨 (작게, 가운데 위)
-    this.add.text(GAME.width / 2, 8, 'DEPTH', {
+    this.add.text(GAME.width / 2, 12, 'DEPTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: '20px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
 
-    // DEPTH 값 (큰 폰트, 가운데)
-    this.depthText = this.add.text(GAME.width / 2, 28, '0 km', {
+    // DEPTH 값 (가운데, 적당히 큰 폰트)
+    this.depthText = this.add.text(GAME.width / 2, 32, '0 km', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '56px',
+      fontSize: '48px',
       color: '#FFFFFF',
       stroke: '#000000',
       strokeThickness: 4,
     }).setOrigin(0.5, 0);
 
-    // GOLD (우측 상단)
-    this.goldText = this.add.text(GAME.width - 20, 14, '0 G', {
+    // GOLD (우측 상단, DEPTH와 겹치지 않게 작게)
+    this.goldText = this.add.text(GAME.width - 24, 18, '0 G', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '32px',
+      fontSize: '26px',
       color: '#FFD700',
       stroke: '#000000',
       strokeThickness: 3,
@@ -261,25 +261,28 @@ export class UIScene extends Phaser.Scene {
       { id: 'void',     emoji: '🌌', name: 'VOID' },
     ];
 
-    const iconY = 116;
-    const boxSize = 56;
-    const spacing = 84;
-    const totalW = (this._biomeDefs.length - 1) * spacing + boxSize;
-    const startX = (GAME.width - totalW) / 2 + boxSize / 2;
+    // 마진 60px씩 좌우, 그 안에 6개 균등 배치. 박스는 이모지 + 여유 padding 충분히.
+    const margin = 60;
+    const usableW = GAME.width - margin * 2;
+    const boxSize = 72;
+    const gap = (usableW - boxSize * this._biomeDefs.length) / (this._biomeDefs.length - 1);
+    const iconY = 144;
+    const startX = margin + boxSize / 2;
 
     this._biomeIcons = this._biomeDefs.map((b, i) => {
-      const x = startX + i * spacing;
+      const x = startX + i * (boxSize + gap);
       const bg = this.add.rectangle(x, iconY, boxSize, boxSize, 0x000000, 0.5).setStrokeStyle(2, 0x444444);
-      const text = this.add.text(x, iconY, b.emoji, {
-        fontSize: '36px',
+      // 이모지는 baseline이 위로 살짝 치우치는 경향이 있어 y를 약간 내림 + 폰트 더 작게
+      const text = this.add.text(x, iconY + 4, b.emoji, {
+        fontSize: '34px',
       }).setOrigin(0.5).setAlpha(0.4);
       return { id: b.id, name: b.name, bg, text };
     });
 
-    // 현재 바이옴 이름 (박스 아래)
-    this.biomeText = this.add.text(GAME.width / 2, 156, 'EARTH', {
+    // 현재 바이옴 이름 (박스 아래, 골드 라인과 겹치지 않게 충분히 위)
+    this.biomeText = this.add.text(GAME.width / 2, 196, 'EARTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '24px',
+      fontSize: '22px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
   }
@@ -365,8 +368,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildOverlay() {
-    // 팝업 — 가운데 상단 (HUD 바 200 아래)
-    this.overlayPopup = this.add.container(GAME.width / 2, 290);
+    // 팝업 — 가운데 상단 (HUD 바 240 아래)
+    this.overlayPopup = this.add.container(GAME.width / 2, 320);
     this.overlayPopup.setDepth(99);
     this.overlayPopup.setVisible(false);
     this.overlayPopupText = this.add.text(0, 0, '', {
