@@ -5,9 +5,8 @@ import { gameState } from '../systems/GameState.js';
 import { ensureGemTexture } from '../objects/TileArt.js';
 import { OverlaySystem } from '../systems/OverlaySystem.js';
 
-const INVENTORY_X = 6;
-const INVENTORY_W = 140;
-const INVENTORY_TOP = 280;
+// 인벤토리 — 우측 stats 패널 바로 아래 3×4 그리드로 통합 표시
+// (위치/폭은 _buildInventory()에서 stats 패널과 같은 영역 사용)
 
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
@@ -199,8 +198,9 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    this.buffArea   = { x: GAME.width - 312, y: 500, w: 300 };
-    this.debuffArea = { x: 160,              y: 500, w: 300 };
+    // 우측: 인벤토리가 stats 아래 500~990 차지. buff는 그 아래로
+    this.buffArea   = { x: GAME.width - 312, y: 1010, w: 300 };
+    this.debuffArea = { x: 12,               y: 270,  w: 300 };  // 좌측 상단 (인벤 비워졌으니)
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -308,18 +308,22 @@ export class UIScene extends Phaser.Scene {
     if (cur) this.biomeText.setText(cur.name);
   }
 
-  // ── 좌측 광물 인벤토리 (12종) — rarity 색상 테두리 + 이름 ──
+  // ── 우측: DRILL STATS 패널 바로 아래에 3×4 그리드로 광물 12종 표시 ──
   _buildInventory() {
-    const x = INVENTORY_X;
-    const y = INVENTORY_TOP;
-    const w = INVENTORY_W;
-    const available = BOTTOM_BAR_Y - INVENTORY_TOP - 20;
-    const itemH = Math.floor(available / ORE_IDS.length);
-    const iconSize = Math.min(44, itemH - 60);
-    const totalH = ORE_IDS.length * itemH + 16;
+    const panelW = 300;
+    const x = GAME.width - panelW - 12;
+    const y = 500;  // stats 패널(270) + h(220) + 간격 10
+    const cols = 3;
+    const rows = 4;
+    const cellW = panelW / cols;
+    const cellH = 116;
+    const totalH = rows * cellH + 36;  // 헤더 28 + 패딩
 
-    this.add.rectangle(x, y, w, totalH, 0x000000, 0.65).setOrigin(0, 0)
-      .setStrokeStyle(2, 0xFFD700, 0.5);
+    // 패널 배경
+    this.add.rectangle(x, y, panelW, totalH, 0x000000, 0.72).setOrigin(0, 0).setStrokeStyle(3, 0xFFD700, 0.8);
+    this.add.text(x + panelW / 2, y + 6, '💎 ORES', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD700',
+    }).setOrigin(0.5, 0);
 
     const rarityColors = {
       common:    0x666666,
@@ -329,38 +333,45 @@ export class UIScene extends Phaser.Scene {
       legendary: 0xFF9800,
     };
 
+    const iconSize = 48;
+    const gridTop = y + 30;
     this.inventoryItems = {};
+
     ORE_IDS.forEach((id, i) => {
       const ore = ORES[id];
       const rarityColor = rarityColors[ore.rarity] ?? 0x666666;
-      const rowCy = y + 8 + i * itemH + itemH / 2;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cellX = x + col * cellW;
+      const cellY = gridTop + row * cellH;
+      const cx = cellX + cellW / 2;
 
-      // 각 row 박스 (rarity 색 stroke)
-      const rowBox = this.add.rectangle(x + w / 2, rowCy, w - 12, itemH - 6, 0x111418, 0.5)
-        .setStrokeStyle(2, rarityColor, 0.6);
+      // 칸 박스 (rarity 색 stroke)
+      this.add.rectangle(cellX + 4, cellY + 2, cellW - 8, cellH - 6, 0x111418, 0.6)
+        .setOrigin(0, 0)
+        .setStrokeStyle(2, rarityColor, 0.7);
 
-      // 아이콘 (상단)
+      // 아이콘 (상단 가운데)
       const gemKey = ensureGemTexture(this, id);
-      const iconY = rowCy - itemH / 2 + iconSize / 2 + 6;
-      const icon = this.add.image(x + w / 2, iconY, gemKey);
+      const iconCy = cellY + 32;
+      const icon = this.add.image(cx, iconCy, gemKey);
       const baseScale = iconSize / GAME.tileSize;
-      icon.setScale(baseScale);
-      icon.setAlpha(0.35);
+      icon.setScale(baseScale).setAlpha(0.35);
 
-      // 이름 (가운데)
-      const nameText = this.add.text(x + w / 2, iconY + iconSize / 2 + 6, ore.name, {
+      // 이름 (아이콘 아래)
+      const nameText = this.add.text(cx, iconCy + iconSize / 2 + 4, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '14px',
+        fontSize: '12px',
         color: '#FFFFFF',
       }).setOrigin(0.5, 0).setAlpha(0.5);
 
-      // 카운트 (하단, 큼)
-      const count = this.add.text(x + w / 2, rowCy + itemH / 2 - 22, '0', {
+      // 카운트 (가장 아래, 강조)
+      const count = this.add.text(cx, cellY + cellH - 24, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '20px',
+        fontSize: '22px',
         color: '#FFD700',
         stroke: '#000000',
-        strokeThickness: 2,
+        strokeThickness: 3,
       }).setOrigin(0.5, 0);
 
       this.inventoryItems[id] = { icon, count, nameText, baseScale };

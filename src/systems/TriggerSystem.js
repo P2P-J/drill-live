@@ -260,11 +260,19 @@ export class TriggerSystem {
       this.scene.cameras.main.flash(400, 255, 255, 255);
     }
 
+    // 채굴 영역 경계 — 벽(wallLeftX/wallRightX) 안쪽으로만 떨어지게 clamp.
+    // 폭발이 벽 옆으로 새지 않도록 tileSize 절반만큼 여유.
+    const xOffset = Math.floor((GAME.width - GAME.chunkTilesX * GAME.tileSize) / 2);
+    const minX = xOffset + (GAME.wallLeftX + 1) * GAME.tileSize + GAME.tileSize * 0.5;
+    const maxX = xOffset + GAME.wallRightX * GAME.tileSize - GAME.tileSize * 0.5;
+
     // count만큼 좌우 ±200px 흩뿌리며 80ms 간격으로 순차 낙하
     for (let i = 0; i < count; i++) {
       const offsetX = count === 1 ? 0 : (Math.random() - 0.5) * 400;
+      const rawX = this.driller.worldX + offsetX;
+      const dropX = Math.max(minX, Math.min(maxX, rawX));
       this.scene.time.delayedCall(i * 80, () => {
-        this.explosionEffect.drop(this.driller.worldX + offsetX, baseY, {
+        this.explosionEffect.drop(dropX, baseY, {
           radius: def.radius,
           color: def.color,
           label: def.label,
