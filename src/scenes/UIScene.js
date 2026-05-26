@@ -7,7 +7,7 @@ import { OverlaySystem } from '../systems/OverlaySystem.js';
 
 const INVENTORY_X = 6;
 const INVENTORY_W = 96;
-const INVENTORY_TOP = 160;
+const INVENTORY_TOP = 220;
 
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
@@ -49,7 +49,7 @@ export class UIScene extends Phaser.Scene {
   _buildStatsPanel() {
     const w = 270, h = 142;
     const x = GAME.width - w - 12;
-    const y = 150;
+    const y = 210;
     const bg = this.add.rectangle(x, y, w, h, 0x000000, 0.65).setOrigin(0, 0).setStrokeStyle(2, 0xFFD700, 0.65);
     const title = this.add.text(x + w / 2, y + 4, 'DRILL STATS', {
       fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFD700',
@@ -190,8 +190,8 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    this.buffArea   = { x: GAME.width - 290, y: 310, w: 270 };
-    this.debuffArea = { x: 116,              y: 310, w: 300 };
+    this.buffArea   = { x: GAME.width - 290, y: 370, w: 270 };
+    this.debuffArea = { x: 116,              y: 370, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -220,44 +220,80 @@ export class UIScene extends Phaser.Scene {
     this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });
   }
 
-  // ── 상단: Depth 중앙 강조 + Biome / Gold 양옆 ──
+  // ── 상단: DEPTH 가운데 + 6개 바이옴 진행 트래커 + 현재 바이옴 이름 + GOLD ──
   _buildTopHud() {
-    const barH = 140;
-    // 어두운 그라데이션 느낌의 배경 (단색 + 하단 강조 라인)
+    const barH = 200;
     this.add.rectangle(0, 0, GAME.width, barH, 0x0A0E1A, 0.85).setOrigin(0, 0);
     this.add.rectangle(0, barH - 4, GAME.width, 4, 0xFFD700, 1.0).setOrigin(0, 0);
 
-    // DEPTH 라벨 (작게, 위)
+    // DEPTH 라벨 (작게, 가운데 위)
     this.add.text(GAME.width / 2, 8, 'DEPTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '22px',
+      fontSize: '20px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
 
-    // DEPTH 값 (크게, 가운데)
-    this.depthText = this.add.text(GAME.width / 2, 30, '0 km', {
+    // DEPTH 값 (큰 폰트, 가운데)
+    this.depthText = this.add.text(GAME.width / 2, 28, '0 km', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '64px',
+      fontSize: '56px',
       color: '#FFFFFF',
       stroke: '#000000',
       strokeThickness: 4,
     }).setOrigin(0.5, 0);
 
-    // 바이옴 (좌측 하단 작게, 이모지 + 이름)
-    this.biomeText = this.add.text(20, barH - 38, '🌍 Earth', {
+    // GOLD (우측 상단)
+    this.goldText = this.add.text(GAME.width - 20, 14, '0 G', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '28px',
-      color: '#FFFFFF',
-    }).setOrigin(0, 0);
-
-    // 골드 (우측 하단, 큼)
-    this.goldText = this.add.text(GAME.width - 20, barH - 42, '0 G', {
-      fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '34px',
+      fontSize: '32px',
       color: '#FFD700',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(1, 0);
+
+    // 6개 바이옴 진행 트래커
+    this._biomeDefs = [
+      { id: 'earth',    emoji: '🌍', name: 'EARTH' },
+      { id: 'crystal',  emoji: '💎', name: 'CRYSTAL' },
+      { id: 'abyssal',  emoji: '🌊', name: 'ABYSS' },
+      { id: 'forest',   emoji: '🌲', name: 'FOREST' },
+      { id: 'magma',    emoji: '🔥', name: 'MAGMA' },
+      { id: 'void',     emoji: '🌌', name: 'VOID' },
+    ];
+
+    const iconY = 116;
+    const boxSize = 56;
+    const spacing = 84;
+    const totalW = (this._biomeDefs.length - 1) * spacing + boxSize;
+    const startX = (GAME.width - totalW) / 2 + boxSize / 2;
+
+    this._biomeIcons = this._biomeDefs.map((b, i) => {
+      const x = startX + i * spacing;
+      const bg = this.add.rectangle(x, iconY, boxSize, boxSize, 0x000000, 0.5).setStrokeStyle(2, 0x444444);
+      const text = this.add.text(x, iconY, b.emoji, {
+        fontSize: '36px',
+      }).setOrigin(0.5).setAlpha(0.4);
+      return { id: b.id, name: b.name, bg, text };
+    });
+
+    // 현재 바이옴 이름 (박스 아래)
+    this.biomeText = this.add.text(GAME.width / 2, 156, 'EARTH', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '24px',
+      color: '#FFD700',
+    }).setOrigin(0.5, 0);
+  }
+
+  _highlightBiome(biomeId) {
+    for (const icon of this._biomeIcons ?? []) {
+      const active = icon.id === biomeId;
+      icon.bg.setStrokeStyle(active ? 4 : 2, active ? 0xFFD700 : 0x444444);
+      icon.bg.setFillStyle(active ? 0xFFD700 : 0x000000, active ? 0.25 : 0.5);
+      icon.text.setAlpha(active ? 1.0 : 0.35);
+      icon.text.setScale(active ? 1.15 : 1.0);
+    }
+    const cur = this._biomeIcons?.find((b) => b.id === biomeId);
+    if (cur) this.biomeText.setText(cur.name);
   }
 
   // ── 좌측 광물 인벤토리 (12종) ──
@@ -329,8 +365,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildOverlay() {
-    // 팝업 — 가운데 상단 (HUD 바 140 아래, announcement보다 살짝 아래)
-    this.overlayPopup = this.add.container(GAME.width / 2, 240);
+    // 팝업 — 가운데 상단 (HUD 바 200 아래)
+    this.overlayPopup = this.add.container(GAME.width / 2, 290);
     this.overlayPopup.setDepth(99);
     this.overlayPopup.setVisible(false);
     this.overlayPopupText = this.add.text(0, 0, '', {
@@ -441,13 +477,8 @@ export class UIScene extends Phaser.Scene {
   _wireEvents() {
     gameState.on('depth', (km) => {
       this.depthText.setText(`${km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km`);
-      const layer = this.biomeManager.getLayerAt(Math.max(0, km));
-      const emojiMap = {
-        'Earth': '🌍', 'Crystal Cave': '💎', 'Abyssal Sea': '🌊',
-        'Ancient Forest': '🌲', 'Magma Core': '🔥', 'Void': '🌌',
-      };
-      const emoji = emojiMap[layer.biomeName] ?? '⛏️';
-      this.biomeText.setText(`${emoji} ${layer.biomeName}`);
+      const biome = this.biomeManager.getBiomeAt(Math.max(0, km));
+      this._highlightBiome(biome?.id ?? 'earth');
     });
 
     gameState.on('gold', (g) => {
