@@ -353,12 +353,14 @@ export class UIScene extends Phaser.Scene {
         fontSize: '24px',
         padding: { top: 4, bottom: 4 },
       }).setOrigin(0.5, 0.6).setAlpha(0.4);
-      // 라벨 (아이콘 아래)
-      const label = this.add.text(trackerX, cy + iconRadius + 6, b.shortLabel, {
+      // 라벨 — 아이콘 우측에 풀 이름 (게임 영역 갈색 위에 살짝 침범)
+      const label = this.add.text(trackerX + iconRadius + 14, cy, b.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '14px',
+        fontSize: '16px',
         color: '#8C95A3',
-      }).setOrigin(0.5, 0);
+        stroke: '#000000',
+        strokeThickness: 4,
+      }).setOrigin(0, 0.5);
 
       const setActive = (active) => {
         if (active) {
