@@ -47,9 +47,9 @@ export class UIScene extends Phaser.Scene {
 
   // 우측 — 둥근 모서리 DRILL 패널 (게임 톤)
   _buildStatsPanel() {
-    const w = 280, h = 220;
+    const w = 320, h = 280;
     const x = GAME.width - w - 16;
-    const y = 200;
+    const y = 160;
     const radius = 16;
 
     // 둥근 박스
@@ -464,16 +464,16 @@ export class UIScene extends Phaser.Scene {
   _buildInventory() {
     const cols = 6;
     const rows = 2;
-    const panelW = 400;
-    const panelH = 220;
-    const drillW = 280;
+    const panelW = 480;
+    const panelH = 280;
+    const drillW = 320;
     const drillRightMargin = 16;
     const x = GAME.width - drillW - drillRightMargin - 12 - panelW;
-    const y = 200;  // DRILL과 같은 y
+    const y = 160;  // DRILL과 같은 y
     const radius = 16;
     const cellW = panelW / cols;
-    const headerH = 46;
-    const gridH = panelH - headerH - 10;
+    const headerH = 50;
+    const gridH = panelH - headerH - 12;
     const cellH = gridH / rows;
 
     // 둥근 박스 배경
@@ -533,16 +533,16 @@ export class UIScene extends Phaser.Scene {
       icon.setScale(baseScale).setAlpha(0.35);
 
       // 이름 (가운데)
-      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 4, ore.name, {
+      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 8, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '11px',
+        fontSize: '13px',
         color: '#8C95A3',
       }).setOrigin(0.5, 0);
 
-      // 카운트 — bottom 정렬, 칸 안 바닥에서 +5
-      const count = this.add.text(cx, cellY + cellInnerH - 5, '0', {
+      // 카운트 — bottom 정렬
+      const count = this.add.text(cx, cellY + cellInnerH - 6, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '18px',
+        fontSize: '22px',
         color: '#FFD700',
       }).setOrigin(0.5, 1.0);
 
