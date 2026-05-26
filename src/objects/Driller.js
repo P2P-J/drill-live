@@ -194,8 +194,8 @@ export class Driller {
 
     if (!inKnockback && blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
       if (!this.isMining) {
-        // 채굴 시작 — drill_loop 시작. mp3 기본 +5dB (≈ volume 0.62). 배속/피치 변경 없이 정사운드.
-        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 0.62 });
+        // 채굴 시작 — drill_loop 시작. 1.0으로 크게 (라이브 송출 시 다른 소리에 묻히지 않게).
+        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 1.0 });
       }
       this.isMining = true;
       // 채굴 진행 — 바이옴 hardness가 분모 (깊이 갈수록 더 오래 걸림)

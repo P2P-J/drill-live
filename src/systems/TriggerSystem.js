@@ -34,26 +34,26 @@ export const TRIGGER_DEFS = {
   OVERDRIVE:  { type: 'buff', buffId: 'drillPowerUp', params: { mult: 7.0 }, durationMs: 30000, priceLabel: '$10', label: 'OVERDRIVE', color: 0x00BCD4 },
 
   // 채팅 (전체 채널 쿨다운 10초)
-  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 10000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
+  FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 10000, priceLabel: 'CHAT', label: 'FAST', color: 0x90CAF9 },
 
   // 신규 구독 — 드릴 아래 10줄을 현재 바이옴 특수 광물로 가득 채움
   SUB:        { type: 'special', action: 'subscribe', priceLabel: 'SUB', label: 'NEW SUB!', color: 0xF06292 },
 
   // 드릴 변경 — 채팅이 직접 Lv을 지정해서 골드 차감 후 30초 유지
   // 가격 = upgrades.drillPower.cost[targetLv-1]. 다운그레이드 시도는 무시.
-  DRILL_WOOD:    { type: 'special', action: 'setDrill', drillLevel: 1, priceLabel: '!wood',    label: 'WOOD DRILL!',    color: 0xCDA678 },
-  DRILL_STONE:   { type: 'special', action: 'setDrill', drillLevel: 2, priceLabel: '!stone',   label: 'STONE DRILL!',   color: 0xB0B0B0 },
-  DRILL_IRON:    { type: 'special', action: 'setDrill', drillLevel: 3, priceLabel: '!iron',    label: 'IRON DRILL!',    color: 0xA8C5DC },
-  DRILL_GOLD:    { type: 'special', action: 'setDrill', drillLevel: 4, priceLabel: '!gold',    label: 'GOLD DRILL!',    color: 0xFFD54F },
-  DRILL_DIAMOND: { type: 'special', action: 'setDrill', drillLevel: 5, priceLabel: '!diamond', label: 'DIAMOND DRILL!', color: 0x80DEEA },
+  DRILL_WOOD:    { type: 'special', action: 'setDrill', drillLevel: 1, priceLabel: 'CHAT', label: 'WOOD DRILL!',    color: 0xCDA678 },
+  DRILL_STONE:   { type: 'special', action: 'setDrill', drillLevel: 2, priceLabel: 'CHAT', label: 'STONE DRILL!',   color: 0xB0B0B0 },
+  DRILL_IRON:    { type: 'special', action: 'setDrill', drillLevel: 3, priceLabel: 'CHAT', label: 'IRON DRILL!',    color: 0xA8C5DC },
+  DRILL_GOLD:    { type: 'special', action: 'setDrill', drillLevel: 4, priceLabel: 'CHAT', label: 'GOLD DRILL!',    color: 0xFFD54F },
+  DRILL_DIAMOND: { type: 'special', action: 'setDrill', drillLevel: 5, priceLabel: 'CHAT', label: 'DIAMOND DRILL!', color: 0x80DEEA },
 
   // 범위/엔진은 기존 incremental 방식 유지 (Lv 한 단계씩 증가)
-  UPGRADE_RANGE:  { type: 'special', action: 'upgradeRange',  priceLabel: '!range',  label: 'RANGE UP!',  color: 0xFF9800 },
-  UPGRADE_ENGINE: { type: 'special', action: 'upgradeEngine', priceLabel: '!engine', label: 'ENGINE UP!', color: 0x03A9F4 },
+  UPGRADE_RANGE:  { type: 'special', action: 'upgradeRange',  priceLabel: 'CHAT', label: 'RANGE UP!',  color: 0xFF9800 },
+  UPGRADE_ENGINE: { type: 'special', action: 'upgradeEngine', priceLabel: 'CHAT', label: 'ENGINE UP!', color: 0x03A9F4 },
 
   // 스트리머 전용 — youtube-bridge에서 owner/moderator만 발동 가능
-  RESET:      { type: 'special', action: 'reset',   priceLabel: '!reset',   label: 'NEW MAP!', color: 0xFFFFFF },
-  JACKPOT:    { type: 'special', action: 'jackpot', priceLabel: '!jackpot', label: 'JACKPOT!', color: 0xFFD700 },
+  RESET:      { type: 'special', action: 'reset',   priceLabel: 'STREAMER', label: 'NEW MAP!', color: 0xFFFFFF },
+  JACKPOT:    { type: 'special', action: 'jackpot', priceLabel: 'STREAMER', label: 'JACKPOT!', color: 0xFFD700 },
 };
 
 export class TriggerSystem {

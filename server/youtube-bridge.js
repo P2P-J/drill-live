@@ -102,26 +102,27 @@ function messageText(msg) {
   return msg.message?.map(m => m.text ?? m.emojiText ?? '').join('') ?? '';
 }
 
-// 누구나 쓸 수 있는 채팅 트리거
+// 누구나 쓸 수 있는 채팅 트리거 (! 없이 단어만 — `!bomb`도 호환).
+// 매칭: 메시지의 첫 단어가 키워드와 정확히 일치할 때만 (자연 채팅 오작동 방지).
 const CHAT_COMMANDS = {
-  '!fast': 'FAST',                  // 드릴 ×1.5 / 10초 (채널 쿨다운 10초)
-  '!bomb': 'CHAT_BOMB',             // 가장 작은 TNT 한 개
+  'fast': 'FAST',                   // 드릴 ×1.5 / 10초 (채널 쿨다운 10초)
+  'bomb': 'CHAT_BOMB',              // 가장 작은 TNT 한 개
 
   // 드릴 변경 — 채팅 1번에 그 Lv로 (30초 임시)
-  '!wood':    'DRILL_WOOD',
-  '!stone':   'DRILL_STONE',
-  '!iron':    'DRILL_IRON',
-  '!gold':    'DRILL_GOLD',
-  '!diamond': 'DRILL_DIAMOND',
+  'wood':    'DRILL_WOOD',
+  'stone':   'DRILL_STONE',
+  'iron':    'DRILL_IRON',
+  'gold':    'DRILL_GOLD',
+  'diamond': 'DRILL_DIAMOND',
 
-  // 범위/엔진 — 다음 Lv (30초 임시)
-  '!range':  'UPGRADE_RANGE',
-  '!engine': 'UPGRADE_ENGINE',
+  // 범위/엔진 — 다음 Lv (5초 임시)
+  'range':  'UPGRADE_RANGE',
+  'engine': 'UPGRADE_ENGINE',
 };
-// 스트리머/모더레이터만 쓸 수 있는 명령어
+// 스트리머/모더레이터만 쓸 수 있는 명령어 (! 없어도 동작)
 const STREAMER_COMMANDS = {
-  '!reset': 'RESET',
-  '!jackpot': 'JACKPOT',
+  'reset': 'RESET',
+  'jackpot': 'JACKPOT',
 };
 
 const STREAMER_CHANNEL_ID = process.env.STREAMER_CHANNEL_ID || null;
@@ -132,20 +133,23 @@ function isStreamer(item) {
   return !!(item.isOwner || item.isModerator);
 }
 
+// 첫 단어만 추출: 메시지에서 ! 떼고, 처음 나오는 알파벳 시퀀스만.
+// "bomb", "!bomb", "BOMB!!!", "bomb please" → "bomb"
+// "i want bomb" → "i" (매칭 안 됨 — 자연 채팅 보호)
+function firstToken(text) {
+  let s = String(text || '').toLowerCase().trim();
+  if (s.startsWith('!')) s = s.slice(1).trim();
+  return s.match(/^[a-z]+/)?.[0] ?? '';
+}
+
 function chatCommandFromText(text) {
-  const lower = String(text || '').toLowerCase().trim();
-  for (const [cmd, id] of Object.entries(CHAT_COMMANDS)) {
-    if (lower.startsWith(cmd)) return id;
-  }
-  return null;
+  const token = firstToken(text);
+  return CHAT_COMMANDS[token] ?? null;
 }
 
 function streamerCommandFromText(text) {
-  const lower = String(text || '').toLowerCase().trim();
-  for (const [cmd, id] of Object.entries(STREAMER_COMMANDS)) {
-    if (lower.startsWith(cmd)) return id;  // null도 그대로 반환 — 호출부에서 분기
-  }
-  return undefined;
+  const token = firstToken(text);
+  return STREAMER_COMMANDS[token];  // undefined도 그대로 반환 — 호출부에서 분기
 }
 
 function buildId(input) {
