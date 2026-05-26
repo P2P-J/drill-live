@@ -149,7 +149,8 @@ export class UIScene extends Phaser.Scene {
 
   _buildAnnouncement() {
     // 가운데 큰 텍스트 (후원/채팅 들어올 때 잠시 표시)
-    this.announceContainer = this.add.container(GAME.width / 2, 280);
+    // ORES 패널 아래, 게임 영역 위쪽 빈 공간 (사용자 빨간 박스 영역)
+    this.announceContainer = this.add.container(GAME.width / 2, 600);
     this.announceContainer.setDepth(100);
     this.announceContainer.setVisible(false);
 
@@ -220,16 +221,17 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    // 우측: DRILL(200~420) + ORES(436~796). buff는 그 아래.
-    this.buffArea   = { x: GAME.width - 312, y: 810, w: 296 };
-    // 좌측: 세로 바이옴 트래커가 (~1550)까지 차지. debuff는 트래커 끝나는 자리 아래.
-    this.debuffArea = { x: 120,              y: 1600, w: 300 };
+    // DRILL 패널 아래 (사용자 파란 박스) — buff/debuff 한 영역 공유, 자동 세로 쌓임
+    const sharedBuffArea = { x: 744, y: 460, w: 320 };
+    this.buffArea = sharedBuffArea;
+    this.debuffArea = sharedBuffArea;
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
     const area = isDebuff ? this.debuffArea : this.buffArea;
+    // 같은 area 안에서 isDebuff 구분 없이 위에서부터 쌓이게
     const sameAreaCount = [...this.buffIndicators.values()]
-      .filter((b) => b.isDebuff === isDebuff).length;
+      .filter((b) => b._areaRef === area).length;
     const x = area.x;
     const y = area.y + sameAreaCount * 72;
 
@@ -249,7 +251,7 @@ export class UIScene extends Phaser.Scene {
     const bar = this.add.rectangle(0, 56, area.w, 6, color).setOrigin(0, 0);
 
     container.add([bg, labelText, timeText, bar]);
-    this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });
+    this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff, _areaRef: area });
   }
 
   // ── 상단 HUD: 좌측 DEPTH | 가운데 알약 바이옴 | 우측 GOLD + 진행도 막대 ──
@@ -584,8 +586,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildOverlay() {
-    // 팝업 — 가운데 상단 (HUD 바 150 아래)
-    this.overlayPopup = this.add.container(GAME.width / 2, 230);
+    // 팝업 — ORES 패널 아래 빈 공간 (사용자 빨간 박스 영역)
+    this.overlayPopup = this.add.container(GAME.width / 2, 600);
     this.overlayPopup.setDepth(99);
     this.overlayPopup.setVisible(false);
     this.overlayPopupText = this.add.text(0, 0, '', {
