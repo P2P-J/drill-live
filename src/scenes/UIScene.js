@@ -6,8 +6,8 @@ import { ensureGemTexture } from '../objects/TileArt.js';
 import { OverlaySystem } from '../systems/OverlaySystem.js';
 
 const INVENTORY_X = 6;
-const INVENTORY_W = 96;
-const INVENTORY_TOP = 260;
+const INVENTORY_W = 140;
+const INVENTORY_TOP = 280;
 
 const BOTTOM_BAR_H = 100;
 const BOTTOM_BAR_Y = GAME.height - BOTTOM_BAR_H;
@@ -47,46 +47,55 @@ export class UIScene extends Phaser.Scene {
 
   // 우측 상단 — 드릴 스펙(파워/범위/엔진) + 현재 속도 배율(버프 포함)
   _buildStatsPanel() {
-    const w = 270, h = 142;
+    const w = 300, h = 220;
     const x = GAME.width - w - 12;
-    const y = 250;
-    const bg = this.add.rectangle(x, y, w, h, 0x000000, 0.65).setOrigin(0, 0).setStrokeStyle(2, 0xFFD700, 0.65);
-    const title = this.add.text(x + w / 2, y + 4, 'DRILL STATS', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFD700',
+    const y = 270;
+    this.add.rectangle(x, y, w, h, 0x000000, 0.72).setOrigin(0, 0).setStrokeStyle(3, 0xFFD700, 0.8);
+
+    // 타이틀
+    this.add.text(x + w / 2, y + 6, '⛏️ DRILL STATS', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD700',
     }).setOrigin(0.5, 0);
 
-    // 행별 라벨/값/Lv바
-    const rowY = (i) => y + 26 + i * 26;
-    const rowBgY = (i) => rowY(i) + 16;
-    const ROW_BAR_W = w - 24;
-    const ROW_BAR_H = 5;
+    // 행 — 한 row 높이 40
+    const rowH = 40;
+    const firstRowY = y + 38;
+    const rowY = (i) => firstRowY + i * rowH;
+    const ROW_BAR_W = w - 28;
+    const ROW_BAR_H = 8;
 
     this._statRows = [];
 
-    const addRow = (i, key, labelText, maxLv, fillColor) => {
-      const label = this.add.text(x + 12, rowY(i), labelText, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#FFFFFF',
+    const addRow = (i, key, emoji, labelText, maxLv, fillColor) => {
+      const ry = rowY(i);
+      // 이모지 + 라벨 (좌측)
+      const label = this.add.text(x + 14, ry, `${emoji} ${labelText}`, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFFFFF',
       });
-      const value = this.add.text(x + w - 12, rowY(i), `Lv 1/${maxLv}`, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#FFD54F',
+      // Lv / max (우측)
+      const value = this.add.text(x + w - 14, ry, `Lv 1 / ${maxLv}`, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD54F',
       }).setOrigin(1, 0);
-      // 빈 바 + 채움 바
-      const barBg = this.add.rectangle(x + 12, rowBgY(i), ROW_BAR_W, ROW_BAR_H, 0x222222).setOrigin(0, 0);
-      const barFill = this.add.rectangle(x + 12, rowBgY(i), ROW_BAR_W, ROW_BAR_H, fillColor).setOrigin(0, 0);
+      // 진행바 (라벨 아래)
+      const barY = ry + 22;
+      this.add.rectangle(x + 14, barY, ROW_BAR_W, ROW_BAR_H, 0x222222).setOrigin(0, 0);
+      const barFill = this.add.rectangle(x + 14, barY, ROW_BAR_W, ROW_BAR_H, fillColor).setOrigin(0, 0);
       barFill.scaleX = 1 / maxLv;
       this._statRows.push({ key, label, value, barFill, maxLv });
     };
 
-    addRow(0, 'drillPower', 'POWER',  5, 0x4CAF50);
-    addRow(1, 'drillRange', 'RANGE',  3, 0xFF9800);
-    addRow(2, 'engine',     'ENGINE', 3, 0x03A9F4);
+    addRow(0, 'drillPower', '⚒️', 'POWER',  5, 0x4CAF50);
+    addRow(1, 'drillRange', '↔️', 'RANGE',  3, 0xFF9800);
+    addRow(2, 'engine',     '⚙️', 'ENGINE', 3, 0x03A9F4);
 
-    // SPEED — 누적 효과 (업그레이드 × 버프). 진행바 없이 텍스트만.
-    this.statSpeedLabel = this.add.text(x + 12, rowY(3) + 8, 'SPEED', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#FFFFFF',
+    // SPEED — 누적 배율 (가장 강조)
+    const speedY = rowY(3) + 4;
+    this.statSpeedLabel = this.add.text(x + 14, speedY, '⚡ SPEED', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', color: '#FFFFFF',
     });
-    this.statSpeedValue = this.add.text(x + w - 12, rowY(3) + 8, '×1.0', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '16px', color: '#FFEB3B',
+    this.statSpeedValue = this.add.text(x + w - 14, speedY, '×1.0', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '24px', color: '#FFEB3B',
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(1, 0);
   }
 
@@ -98,7 +107,7 @@ export class UIScene extends Phaser.Scene {
       if (row.key === 'drillPower') {
         row.value.setText(this.upgradeSystem.getDrillName());
       } else {
-        row.value.setText(`Lv ${lv}/${row.maxLv}`);
+        row.value.setText(`Lv ${lv} / ${row.maxLv}`);
       }
       row.barFill.scaleX = Math.min(1, lv / row.maxLv);
       // 임시 업그레이드 활성 시 잔여시간 비율로 라벨 색 강조 (임시 = 30초 카운트다운)
@@ -190,8 +199,8 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    this.buffArea   = { x: GAME.width - 290, y: 410, w: 270 };
-    this.debuffArea = { x: 116,              y: 410, w: 300 };
+    this.buffArea   = { x: GAME.width - 312, y: 500, w: 300 };
+    this.debuffArea = { x: 160,              y: 500, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -222,7 +231,7 @@ export class UIScene extends Phaser.Scene {
 
   // ── 상단: DEPTH + GOLD (한 줄) → 6개 바이옴 박스 → 현재 바이옴 이름 ──
   _buildTopHud() {
-    const barH = 240;
+    const barH = 260;
     this.add.rectangle(0, 0, GAME.width, barH, 0x0A0E1A, 0.85).setOrigin(0, 0);
     this.add.rectangle(0, barH - 4, GAME.width, 4, 0xFFD700, 1.0).setOrigin(0, 0);
 
@@ -261,28 +270,28 @@ export class UIScene extends Phaser.Scene {
       { id: 'void',     emoji: '🌌', name: 'VOID' },
     ];
 
-    // 마진 60px씩 좌우, 그 안에 6개 균등 배치. 박스는 이모지 + 여유 padding 충분히.
-    const margin = 60;
+    // 마진 50px씩 좌우, 그 안에 6개 균등 배치. 박스 90px로 키워서 큰 이모지 안전하게.
+    const margin = 50;
     const usableW = GAME.width - margin * 2;
-    const boxSize = 72;
+    const boxSize = 90;
     const gap = (usableW - boxSize * this._biomeDefs.length) / (this._biomeDefs.length - 1);
-    const iconY = 144;
+    const iconY = 150;
     const startX = margin + boxSize / 2;
 
     this._biomeIcons = this._biomeDefs.map((b, i) => {
       const x = startX + i * (boxSize + gap);
       const bg = this.add.rectangle(x, iconY, boxSize, boxSize, 0x000000, 0.5).setStrokeStyle(2, 0x444444);
-      // 이모지는 baseline이 위로 살짝 치우치는 경향이 있어 y를 약간 내림 + 폰트 더 작게
-      const text = this.add.text(x, iconY + 4, b.emoji, {
-        fontSize: '34px',
+      // 이모지 baseline 보정 — y를 박스 중앙보다 +10 내려서 상단 짤림 방지
+      const text = this.add.text(x, iconY + 10, b.emoji, {
+        fontSize: '52px',
       }).setOrigin(0.5).setAlpha(0.4);
       return { id: b.id, name: b.name, bg, text };
     });
 
     // 현재 바이옴 이름 (박스 아래, 골드 라인과 겹치지 않게 충분히 위)
-    this.biomeText = this.add.text(GAME.width / 2, 196, 'EARTH', {
+    this.biomeText = this.add.text(GAME.width / 2, 212, 'EARTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '22px',
+      fontSize: '24px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
   }
@@ -299,40 +308,62 @@ export class UIScene extends Phaser.Scene {
     if (cur) this.biomeText.setText(cur.name);
   }
 
-  // ── 좌측 광물 인벤토리 (12종) ──
+  // ── 좌측 광물 인벤토리 (12종) — rarity 색상 테두리 + 이름 ──
   _buildInventory() {
     const x = INVENTORY_X;
     const y = INVENTORY_TOP;
     const w = INVENTORY_W;
-    // 사용 가능 높이 안에 12개를 균등 배치
     const available = BOTTOM_BAR_Y - INVENTORY_TOP - 20;
     const itemH = Math.floor(available / ORE_IDS.length);
-    const iconSize = Math.min(58, itemH - 22);
+    const iconSize = Math.min(44, itemH - 60);
     const totalH = ORE_IDS.length * itemH + 16;
 
-    this.add.rectangle(x, y, w, totalH, 0x000000, 0.55).setOrigin(0, 0)
-      .setStrokeStyle(2, 0xFFD700, 0.4);
+    this.add.rectangle(x, y, w, totalH, 0x000000, 0.65).setOrigin(0, 0)
+      .setStrokeStyle(2, 0xFFD700, 0.5);
+
+    const rarityColors = {
+      common:    0x666666,
+      uncommon:  0x4CAF50,
+      rare:      0x2196F3,
+      epic:      0x9C27B0,
+      legendary: 0xFF9800,
+    };
 
     this.inventoryItems = {};
     ORE_IDS.forEach((id, i) => {
-      const cy_ = y + 8 + i * itemH + itemH / 2;
+      const ore = ORES[id];
+      const rarityColor = rarityColors[ore.rarity] ?? 0x666666;
+      const rowCy = y + 8 + i * itemH + itemH / 2;
 
-      // 어두운 박스 배경
-      this.add.rectangle(x + w / 2, cy_ - 8, iconSize + 4, iconSize + 4, 0x1a1a1a, 0.7)
-        .setStrokeStyle(1, 0x444444, 0.6);
+      // 각 row 박스 (rarity 색 stroke)
+      const rowBox = this.add.rectangle(x + w / 2, rowCy, w - 12, itemH - 6, 0x111418, 0.5)
+        .setStrokeStyle(2, rarityColor, 0.6);
 
+      // 아이콘 (상단)
       const gemKey = ensureGemTexture(this, id);
-      const icon = this.add.image(x + w / 2, cy_ - 8, gemKey);
-      icon.setScale(iconSize / GAME.tileSize);
-      icon.setAlpha(0.3);
+      const iconY = rowCy - itemH / 2 + iconSize / 2 + 6;
+      const icon = this.add.image(x + w / 2, iconY, gemKey);
+      const baseScale = iconSize / GAME.tileSize;
+      icon.setScale(baseScale);
+      icon.setAlpha(0.35);
 
-      const count = this.add.text(x + w / 2, cy_ + iconSize / 2 - 4, '0', {
+      // 이름 (가운데)
+      const nameText = this.add.text(x + w / 2, iconY + iconSize / 2 + 6, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '18px',
+        fontSize: '14px',
+        color: '#FFFFFF',
+      }).setOrigin(0.5, 0).setAlpha(0.5);
+
+      // 카운트 (하단, 큼)
+      const count = this.add.text(x + w / 2, rowCy + itemH / 2 - 22, '0', {
+        fontFamily: 'Arial Black, Arial, sans-serif',
+        fontSize: '20px',
         color: '#FFD700',
+        stroke: '#000000',
+        strokeThickness: 2,
       }).setOrigin(0.5, 0);
 
-      this.inventoryItems[id] = { icon, count, baseScale: iconSize / GAME.tileSize };
+      this.inventoryItems[id] = { icon, count, nameText, baseScale };
     });
   }
 
@@ -368,8 +399,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildOverlay() {
-    // 팝업 — 가운데 상단 (HUD 바 240 아래)
-    this.overlayPopup = this.add.container(GAME.width / 2, 320);
+    // 팝업 — 가운데 상단 (HUD 바 260 아래)
+    this.overlayPopup = this.add.container(GAME.width / 2, 340);
     this.overlayPopup.setDepth(99);
     this.overlayPopup.setVisible(false);
     this.overlayPopupText = this.add.text(0, 0, '', {
@@ -529,6 +560,7 @@ export class UIScene extends Phaser.Scene {
       if (!item) return;
       item.count.setText(String(total));
       item.icon.setAlpha(1.0);
+      item.nameText?.setAlpha(1.0);
       this.tweens.add({
         targets: item.icon,
         scale: { from: item.baseScale * 1.3, to: item.baseScale },
