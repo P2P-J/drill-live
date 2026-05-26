@@ -464,7 +464,7 @@ export class UIScene extends Phaser.Scene {
   _buildInventory() {
     const cols = 6;
     const rows = 2;
-    const panelW = 520;
+    const panelW = 630;  // 좌측 바이옴 트래커 라벨 우측 끝(~90)까지 마진 ~14
     const panelH = 280;
     const drillW = 320;
     const drillRightMargin = 16;
