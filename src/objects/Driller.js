@@ -34,9 +34,9 @@ export class Driller {
 
     // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
     // 목표: 기본 상태에서 드릴 폭 ≈ 256px (4 타일). 큰 PNG여도 자동 축소.
-    const srcImg = scene.textures.get(drillerKey).getSourceImage?.();
-    const naturalW = (srcImg && srcImg.width) || 64;
-    this._baseScale = 256 / naturalW;
+    this._targetWidth = 256;
+    this._currentMood = 'rush';
+    this._recomputeBaseScale();
     this.sprite.setScale(this._baseScale);
 
     this.container.add(this.sprite);
@@ -414,7 +414,6 @@ export class Driller {
     this.vx += impulseX;
     this.vy += impulseY;
     this._knockbackUntil = this.scene.time.now + 350;
-    // 카메라도 살짝 같이 움직이는 느낌으로 sprite scale 펑 효과
     this.scene.tweens.killTweensOf(this.container);
     this.scene.tweens.add({
       targets: this.container,
@@ -422,5 +421,29 @@ export class Driller {
       duration: 90, yoyo: true,
       ease: 'Quad.easeOut',
     });
+    // 부상 표정 — cry 텍스처로 전환, 350ms 후 평소(rush)로 복귀
+    this.setMood('cry');
+    this.scene.time.delayedCall(350, () => this.setMood('rush'));
+  }
+
+  // 텍스처 전환 (rush ↔ cry). 새 텍스처의 native 크기에 맞춰 scale 재계산해서
+  // 두 이미지 크기가 달라도 동일한 화면 크기로 정규화.
+  setMood(mood) {
+    if (this._currentMood === mood) return;
+    const key = mood === 'cry' ? 'driller-cry' : 'driller';
+    if (!this.scene.textures.exists(key)) return;
+    this._currentMood = mood;
+    this.sprite.setTexture(key);
+    this._recomputeBaseScale();
+    // 현재 drillRange 배율 유지 (DrillerArt.js의 _tweenScaleForRange와 동일 공식)
+    const mult = 1.0 + (this.drillRange - 1) * 0.55;
+    this.sprite.setScale(this._baseScale * mult);
+  }
+
+  _recomputeBaseScale() {
+    const key = this._currentMood === 'cry' ? 'driller-cry' : 'driller';
+    const srcImg = this.scene.textures.get(key)?.getSourceImage?.();
+    const naturalW = (srcImg && srcImg.width) || 64;
+    this._baseScale = this._targetWidth / naturalW;
   }
 }

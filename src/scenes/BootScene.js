@@ -6,8 +6,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // 사용자 드릴 PNG가 /public/assets/drill.png 에 있으면 자동 로드.
-    this.load.image('driller', '/assets/drill.png');
+    // 드릴 텍스처 두 종 — 'driller'(평소, drill-rush.png) + 'driller-cry'(폭발 넉백 시).
+    // 크기는 Driller가 setTexture 후 baseScale 재계산해서 동일 화면 크기로 정규화.
+    this.load.image('driller', '/assets/drill-rush.png');
+    this.load.image('driller-cry', '/assets/drill-cry.png');
 
     // 사운드는 manifest 기반으로 lazy load. /assets/audio/manifest.json에
     // 등록된 키만 시도해서 404 noise 방지. (없으면 procedural fallback).
