@@ -532,11 +532,13 @@ export class UIScene extends Phaser.Scene {
       const baseScale = iconSize / GAME.tileSize;
       icon.setScale(baseScale).setAlpha(0.35);
 
-      // 이름 (가운데)
-      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 8, ore.name, {
+      // 이름 (가운데, 살짝 위로) — 흰색 + 검정 테두리
+      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 2, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
         fontSize: '13px',
-        color: '#8C95A3',
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 3,
       }).setOrigin(0.5, 0);
 
       // 카운트 — bottom 정렬
