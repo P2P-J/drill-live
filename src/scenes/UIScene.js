@@ -364,7 +364,7 @@ export class UIScene extends Phaser.Scene {
       bgCircle.strokeCircle(trackerX, cy, iconRadius);
       // 이모지 — anchor y를 원 center보다 +8 아래에 두고 origin 정중앙
       // (Phaser text의 이모지 bbox가 위쪽에 치우쳐 그려지는 걸 anchor 이동으로 보정)
-      const emoji = this.add.text(trackerX, cy + 8, b.emoji, {
+      const emoji = this.add.text(trackerX, cy + 5, b.emoji, {
         fontSize: '40px',
         padding: { top: 4, bottom: 4 },
       }).setOrigin(0.5, 0.5).setAlpha(0.4);
