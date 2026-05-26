@@ -24,29 +24,26 @@ const SERVER_URL = process.env.BRIDGE_URL || 'http://localhost:8080';
 const POLL_INTERVAL_MS = Number(process.env.YT_POLL_MS) || 4000;  // youtube-chat 기본 1초, 4초로 완화
 
 // 슈퍼챗 금액(USD) → 기본 트리거. 메시지에 키워드 있으면 그게 우선.
+// 단순화: 폭탄(×5) + 드릴 속도 버프 2종. 광물/RANGE/TURBO는 모두 제거됨.
 function tierFromAmount(usd) {
   if (usd >= 20) return 'NUKE';
-  if (usd >= 15) return 'SPECIAL';
-  if (usd >= 10) return 'DIAMOND';
+  if (usd >= 10) return 'OVERDRIVE';
   if (usd >= 5)  return 'MEGA_BLAST';
-  if (usd >= 3)  return 'GOLD_RUSH';
+  if (usd >= 3)  return 'ULTRA_BOMB';
   if (usd >= 2)  return 'DRILL_UP';
   return 'BOMB';
 }
 
-// 메시지 텍스트에 명시적 트리거 이름이 있으면 우선 사용 (가격대 안에서만 허용 — 시청자가 더 비싼 트리거를 요구할 순 없음).
+// 메시지 텍스트에 명시적 트리거 이름이 있으면 우선 사용 (가격대 안에서만 허용).
 function keywordFromText(text, maxTier) {
   const t = String(text || '').toLowerCase();
-  const order = ['BOMB','DRILL_UP','ULTRA_BOMB','GOLD_RUSH','MEGA_BLAST','TURBO','GEM_DROP','RANGE_UP','OVERDRIVE','DIAMOND','SPECIAL','NUKE'];
+  const order = ['BOMB','DRILL_UP','ULTRA_BOMB','MEGA_BLAST','OVERDRIVE','NUKE'];
   const tierIdx = order.indexOf(maxTier);
   const tokenMap = {
-    'nuke':'NUKE', 'special':'SPECIAL', 'diamond':'DIAMOND', 'overdrive':'OVERDRIVE',
-    'range':'RANGE_UP', 'range up':'RANGE_UP',
-    'gem':'GEM_DROP', 'gemdrop':'GEM_DROP', 'gem drop':'GEM_DROP',
-    'turbo':'TURBO',
-    'mega':'MEGA_BLAST', 'mega blast':'MEGA_BLAST',
-    'gold':'GOLD_RUSH', 'goldrush':'GOLD_RUSH', 'gold rush':'GOLD_RUSH',
-    'ultra':'ULTRA_BOMB', 'ultra bomb':'ULTRA_BOMB',
+    'nuke':'NUKE',
+    'overdrive':'OVERDRIVE',
+    'mega':'MEGA_BLAST', 'giga':'MEGA_BLAST', 'blast':'MEGA_BLAST',
+    'ultra':'ULTRA_BOMB',
     'drill':'DRILL_UP', 'drill up':'DRILL_UP', 'drillup':'DRILL_UP',
     'bomb':'BOMB',
   };

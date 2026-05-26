@@ -125,24 +125,24 @@ export class UIScene extends Phaser.Scene {
 
     this.announceTrigger = this.add.text(0, 0, '', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '72px',
+      fontSize: '88px',
       color: '#FFEB3B',
       stroke: '#000000',
-      strokeThickness: 8,
+      strokeThickness: 10,
     }).setOrigin(0.5, 0.5);
 
-    this.announceDonor = this.add.text(0, 60, '', {
+    this.announceDonor = this.add.text(0, 80, '', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '36px',
+      fontSize: '64px',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: 6,
     }).setOrigin(0.5, 0.5);
 
     this.announceContainer.add([this.announceTrigger, this.announceDonor]);
   }
 
-  showAnnouncement(triggerLabel, donor, color = '#FFEB3B') {
+  showAnnouncement(triggerLabel, donor, color = '#FFEB3B', holdMs = 4000) {
     this.announceTrigger.setText(triggerLabel);
     this.announceTrigger.setColor(color);
     this.announceDonor.setText(donor ? `from ${donor}` : '');
@@ -159,8 +159,7 @@ export class UIScene extends Phaser.Scene {
       duration: 280,
       ease: 'Back.easeOut',
     });
-    // 2.5초 후 페이드 아웃
-    this.time.delayedCall(2500, () => {
+    this.time.delayedCall(holdMs, () => {
       this.tweens.add({
         targets: this.announceContainer,
         alpha: 0,
@@ -463,8 +462,9 @@ export class UIScene extends Phaser.Scene {
     // 트리거 발동 시 가운데 announcement + 이벤트 피드
     if (this.triggerSystem) {
       this.triggerSystem.on('fire', ({ triggerId, def, donor }) => {
-        const colorHex = '#' + def.color.toString(16).padStart(6, '0');
-        this.showAnnouncement(def.label, donor, colorHex);
+        const colorHex = '#' + (def.color ?? 0xFFEB3B).toString(16).padStart(6, '0');
+        const holdMs = def.announceMs ?? 4000;
+        this.showAnnouncement(def.label, donor, colorHex, holdMs);
         this._pushEvent(`${def.label}!`, `from ${donor}`);
       });
     }

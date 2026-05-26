@@ -20,28 +20,18 @@ export const TRIGGER_DEFS = {
   // 채팅 — 가장 작은 TNT 한 개 (`!bomb` 무료, 별도 쿨다운 없음)
   CHAT_BOMB:  { type: 'bomb', radius: 1.2, color: 0xFFC107, tntScale: 0.7,  priceLabel: 'CHAT', label: 'BOMB' },
 
-  // 후원 폭발 계열
-  BOMB:       { type: 'bomb', radius: 1.8, color: 0xFF9800, tntScale: 0.9,  priceLabel: '$1',  label: 'ULTRA BOMB' },
-  ULTRA_BOMB: { type: 'bomb', radius: 2.6, color: 0xF44336, tntScale: 1.2,  priceLabel: '$3',  label: 'MEGA BOMB' },
-  MEGA_BLAST: { type: 'bomb', radius: 3.6, color: 0xD32F2F, tntScale: 1.5,  priceLabel: '$5',  label: 'GIGA BLAST' },
-  NUKE:       { type: 'bomb', radius: 6.0, color: 0xE91E63, tntScale: 2.0,  priceLabel: '$20', label: 'NUKE',     shake: 0.025 },
+  // 후원 폭발 계열 — count: 5 (한 슈퍼챗에 폭탄 5개 흩뿌리기)
+  BOMB:       { type: 'bomb', count: 5, radius: 2.2, color: 0xFF9800, tntScale: 0.9,  priceLabel: '$1',  label: 'ULTRA BOMB' },
+  ULTRA_BOMB: { type: 'bomb', count: 5, radius: 3.2, color: 0xF44336, tntScale: 1.2,  priceLabel: '$3',  label: 'MEGA BOMB' },
+  MEGA_BLAST: { type: 'bomb', count: 5, radius: 4.5, color: 0xD32F2F, tntScale: 1.5,  priceLabel: '$5',  label: 'GIGA BLAST', shake: 0.018 },
+  NUKE:       { type: 'bomb', count: 5, radius: 8.0, color: 0xE91E63, tntScale: 2.0,  priceLabel: '$20', label: 'NUKE', shake: 0.04, screenFlash: true, announceMs: 10000 },
 
   // 좋아요 — 가장 작은 TNT, 3초 sizzle, 좋아요 누른 사람 이름 표시 (sizzle 중 추가됨)
   LIKE:       { type: 'like', radius: 1.2, color: 0xE91E63, tntScale: 0.75, priceLabel: '❤',  label: 'LIKE', sizzleDurationMs: 3000 },
 
-  // 드릴 계열 — BuffSystem 활용
-  DRILL_UP:   { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 30000, priceLabel: '$2',  label: 'DRILL UP',  color: 0xCDDC39 },
-  TURBO:      { type: 'buff', buffId: 'drillPowerUp', params: { mult: 3.0 }, durationMs: 15000, priceLabel: '$5',  label: 'TURBO',     color: 0x4CAF50 },
-  OVERDRIVE:  { type: 'buff', buffId: 'drillPowerUp', params: { mult: 5.0 }, durationMs: 20000, priceLabel: '$10', label: 'OVERDRIVE', color: 0x00BCD4 },
-
-  // 광물 계열 — 드릴 근처에 광물 강제 생성
-  GOLD_RUSH:  { type: 'oreSpawn', oreId: 'gold',    count: 12, radius: 2.5, priceLabel: '$3',  label: 'GOLD RUSH',  color: 0xFFD700 },
-  GEM_DROP:   { type: 'oreSpawn', oreId: 'sapphire',count: 8,  radius: 2.0, priceLabel: '$5',  label: 'GEM DROP',   color: 0x2196F3 },
-  DIAMOND:    { type: 'oreSpawn', oreId: 'diamond', count: 5,  radius: 2.5, priceLabel: '$10', label: 'DIAMOND',    color: 0xB9F6CA },
-  SPECIAL:    { type: 'oreSpawn', oreId: 'biome',   count: 8,  radius: 2.5, priceLabel: '$15', label: 'SPECIAL',    color: 0xBA68C8 },
-
-  // 범위 확장 (이미 SPACE로 구현된 것)
-  RANGE_UP:   { type: 'buff', buffId: 'drillRangeUp', params: { bonus: 2, label: 'RANGE UP!' }, durationMs: 10000, priceLabel: 'SC', label: 'RANGE UP', color: 0xFF9800 },
+  // 드릴 속도 버프 — BuffSystem 활용
+  DRILL_UP:   { type: 'buff', buffId: 'drillPowerUp', params: { mult: 2.0 }, durationMs: 30000, priceLabel: '$2',  label: 'DRILL UP',  color: 0xCDDC39 },
+  OVERDRIVE:  { type: 'buff', buffId: 'drillPowerUp', params: { mult: 7.0 }, durationMs: 30000, priceLabel: '$10', label: 'OVERDRIVE', color: 0x00BCD4 },
 
   // 채팅 (전체 채널 쿨다운 10초)
   FAST:       { type: 'buff', buffId: 'drillPowerUp', params: { mult: 1.5 }, durationMs: 10000, cooldownMs: 10000, priceLabel: 'CHAT', label: '!fast', color: 0x90CAF9 },
@@ -86,9 +76,8 @@ export class TriggerSystem {
   // 폭탄/LIKE 폭발 사운드는 ExplosionEffect가 적절한 시점에 직접 재생.
   _triggerSound(triggerId) {
     const map = {
-      DRILL_UP: 'drill_up', TURBO: 'turbo', OVERDRIVE: 'overdrive',
-      RANGE_UP: 'range_up', FAST: 'chat_fast',
-      GOLD_RUSH: 'gold_rush', GEM_DROP: 'gem_drop', DIAMOND: 'diamond_spawn', SPECIAL: 'special_ore',
+      DRILL_UP: 'drill_up', OVERDRIVE: 'overdrive',
+      FAST: 'chat_fast',
       SUB: 'sub_jingle',
     };
     const key = map[triggerId];
@@ -127,7 +116,6 @@ export class TriggerSystem {
     switch (def.type) {
       case 'bomb':       return this._handleBomb(def, donor);
       case 'buff':       return this._handleBuff(def);
-      case 'oreSpawn':   return this._handleOreSpawn(def);
       case 'like':       return this._handleLike(def, donor);
       case 'composite':  return this._handleComposite(def, donor);
       case 'special':    return;  // 이미 위에서 처리됨
@@ -257,8 +245,8 @@ export class TriggerSystem {
 
   _handleBomb(def) {
     const drillScale = this.driller.sprite?.scaleY ?? 1.0;
-    const targetX = this.driller.worldX;
-    const targetY = this.driller.y + 64 * drillScale;
+    const baseY = this.driller.y + 64 * drillScale;
+    const count = def.count ?? 1;
 
     // 반경에 따라 폭발 사운드 결정 (TNT 낙하 시 안 울리고, 폭발 순간 ExplosionEffect가 재생)
     const explosionSound =
@@ -267,52 +255,30 @@ export class TriggerSystem {
       def.radius >= 2.0 ? 'bomb_ultra' :
       'bomb_small';
 
-    this.explosionEffect.drop(targetX, targetY, {
-      radius: def.radius,
-      color: def.color,
-      label: def.label,
-      tntScale: def.tntScale,
-      shake: def.shake ?? 0.012,
-      explosionSound,
-    });
+    // NUKE 끝판왕 효과 — 첫 폭탄과 함께 화면 전체 플래시
+    if (def.screenFlash) {
+      this.scene.cameras.main.flash(400, 255, 255, 255);
+    }
+
+    // count만큼 좌우 ±200px 흩뿌리며 80ms 간격으로 순차 낙하
+    for (let i = 0; i < count; i++) {
+      const offsetX = count === 1 ? 0 : (Math.random() - 0.5) * 400;
+      this.scene.time.delayedCall(i * 80, () => {
+        this.explosionEffect.drop(this.driller.worldX + offsetX, baseY, {
+          radius: def.radius,
+          color: def.color,
+          label: def.label,
+          tntScale: def.tntScale,
+          shake: def.shake ?? 0.012,
+          explosionSound,
+        });
+      });
+    }
   }
 
   _handleBuff(def) {
     const params = { ...def.params, label: def.label };
     this.buffSystem.apply(def.buffId, params, def.durationMs);
-  }
-
-  _handleOreSpawn(def) {
-    let oreId = def.oreId;
-    if (oreId === 'biome') {
-      oreId = this._biomeSpecialOre();
-    }
-    const ore = ORES[oreId];
-    if (!ore) return;
-
-    // 드릴 근처에 광물 강제 생성 (radius 안의 빈 곳/일반 흙 타일을 광물로 변환)
-    const centerTileX = this.driller.getCurrentTileX();
-    const centerTileY = this.driller.getTileY() + 2;  // 드릴 약간 아래
-
-    const ir = Math.ceil(def.radius);
-    const r2 = def.radius * def.radius;
-    let placed = 0;
-    const candidates = [];
-    for (let dy = 0; dy <= ir + 1; dy++) {
-      for (let dx = -ir; dx <= ir; dx++) {
-        if (dx * dx + dy * dy > r2) continue;
-        candidates.push([centerTileX + dx, centerTileY + dy]);
-      }
-    }
-    // 무작위 셔플
-    for (let i = candidates.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-    }
-    for (const [tx, ty] of candidates) {
-      if (placed >= def.count) break;
-      if (this.tileMap.convertToOre(tx, ty, ore)) placed++;
-    }
   }
 
   _biomeSpecialOre() {

@@ -31,5 +31,10 @@ export const UPGRADES = {
 
 export const UPGRADE_ORDER = ['drillPower', 'drillRange', 'engine'];
 
-// 임시 업그레이드 지속 시간
-export const TEMP_UPGRADE_MS = 30000;
+// 임시 업그레이드 지속 시간 (업그레이드 종류별)
+// drillPower(!wood~!diamond)는 30초, drillRange/engine(!range/!engine)은 5초
+export const TEMP_UPGRADE_MS = {
+  drillPower: 30000,
+  drillRange: 5000,
+  engine:     5000,
+};

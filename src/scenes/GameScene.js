@@ -106,24 +106,14 @@ export class GameScene extends Phaser.Scene {
       this.input.keyboard.on(`keydown-${key}`, () => this.triggerSystem.fire(triggerId));
     }
 
-    // SPACE: 후원 시뮬레이션 — DRILL RANGE +2, 10초 (드릴이 커지고 반경 확장)
-    this.input.keyboard.on('keydown-SPACE', () => {
-      this.triggerSystem.fire('RANGE_UP');
-    });
-
     // === 후원 시뮬레이션 키보드 매핑 (Phase 3 테스트용) ===
     const KEY_TRIGGERS = {
-      'ONE':   'BOMB',         // $1
-      'TWO':   'ULTRA_BOMB',   // $3
-      'THREE': 'MEGA_BLAST',   // $5
-      'FOUR':  'NUKE',         // $20
-      'FIVE':  'DRILL_UP',     // $2
-      'SIX':   'TURBO',        // $5
-      'SEVEN': 'OVERDRIVE',    // $10
-      'EIGHT': 'GOLD_RUSH',    // $3
-      'NINE':  'GEM_DROP',     // $5
-      'ZERO':  'DIAMOND',      // $10
-      'Q':     'SPECIAL',      // $15
+      'ONE':   'BOMB',         // $1  — ULTRA BOMB ×5
+      'TWO':   'ULTRA_BOMB',   // $3  — MEGA BOMB ×5
+      'THREE': 'MEGA_BLAST',   // $5  — GIGA BLAST ×5
+      'FOUR':  'NUKE',         // $20 — NUKE ×5
+      'FIVE':  'DRILL_UP',     // $2  — ×2.0 / 30s
+      'SEVEN': 'OVERDRIVE',    // $10 — ×7.0 / 30s
       'W':     'FAST',         // !fast
       'E':     'SUB',          // 신규 구독 — 드릴 아래 10줄 바이옴 특수광물 채우기
       'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)

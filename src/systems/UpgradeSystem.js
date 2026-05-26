@@ -37,7 +37,9 @@ export class UpgradeSystem {
   }
 
   remainingFrac(name) {
-    return this.remainingMs(name) / TEMP_UPGRADE_MS;
+    const total = TEMP_UPGRADE_MS[name];
+    if (!total) return 0;
+    return this.remainingMs(name) / total;
   }
 
   // 드릴 직접 지정 (wood=1, stone=2, iron=3, gold=4, diamond=5).
@@ -50,7 +52,7 @@ export class UpgradeSystem {
     const curLv = this.temp.drillPower.level;
     // 같은 Lv 또는 더 낮은 Lv 요청 — 다운그레이드는 무시, 같은 Lv은 timer 갱신만
     if (targetLv === curLv) {
-      this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+      this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS.drillPower;
       this._emit('refresh', { name: 'drillPower', level: curLv });
       return { ok: true, level: curLv, cost: 0, refreshed: true };
     }
@@ -64,7 +66,7 @@ export class UpgradeSystem {
     }
     if (cost > 0) this.state.spendGold(cost);
     this.temp.drillPower.level = targetLv;
-    this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+    this.temp.drillPower.expiresAt = this.scene.time.now + TEMP_UPGRADE_MS.drillPower;
     this._emit('upgrade', { name: 'drillPower', level: targetLv, cost });
     return { ok: true, level: targetLv, cost, name: 'drillPower' };
   }
@@ -78,7 +80,7 @@ export class UpgradeSystem {
     const cur = this.temp[name].level;
     if (cur >= def.maxLevel) {
       // 이미 만렙 — 만료 시각만 갱신 (지속 시간 리프레시)
-      this.temp[name].expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+      this.temp[name].expiresAt = this.scene.time.now + TEMP_UPGRADE_MS[name];
       this._emit('refresh', { name, level: cur });
       return { ok: true, level: cur, cost: 0, name, refreshed: true };
     }
@@ -89,7 +91,7 @@ export class UpgradeSystem {
     this.state.spendGold(cost);
     const newLv = cur + 1;
     this.temp[name].level = newLv;
-    this.temp[name].expiresAt = this.scene.time.now + TEMP_UPGRADE_MS;
+    this.temp[name].expiresAt = this.scene.time.now + TEMP_UPGRADE_MS[name];
     this._emit('upgrade', { name, level: newLv, cost });
     return { ok: true, level: newLv, cost, name };
   }

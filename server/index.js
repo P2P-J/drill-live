@@ -17,11 +17,10 @@ const PORT = process.env.PORT || 8080;
 // TRIGGER_IDS — TriggerSystem.TRIGGER_DEFS와 일치해야 함. 잘못된 ID 거부용.
 const VALID_TRIGGER_IDS = new Set([
   'CHAT_BOMB',                                    // 채팅 !bomb
-  'BOMB', 'ULTRA_BOMB', 'MEGA_BLAST', 'NUKE',     // 후원 폭발 4종
+  'BOMB', 'ULTRA_BOMB', 'MEGA_BLAST', 'NUKE',     // 후원 폭발 4종 (각 5개씩)
   'LIKE',
-  'DRILL_UP', 'TURBO', 'OVERDRIVE',
-  'GOLD_RUSH', 'GEM_DROP', 'DIAMOND', 'SPECIAL',
-  'RANGE_UP', 'FAST',
+  'DRILL_UP', 'OVERDRIVE',                        // 후원 속도 버프 2종
+  'FAST',                                          // 채팅 !fast
   'SUB',
   'DRILL_WOOD', 'DRILL_STONE', 'DRILL_IRON', 'DRILL_GOLD', 'DRILL_DIAMOND',   // 채팅 드릴 변경
   'UPGRADE_RANGE', 'UPGRADE_ENGINE',                                            // 채팅 범위/엔진 업그레이드
