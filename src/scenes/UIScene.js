@@ -67,9 +67,9 @@ export class UIScene extends Phaser.Scene {
     const headerPill = this.add.graphics();
     headerPill.fillStyle(0xFFD700, 1.0);
     headerPill.fillRoundedRect(headerPillX, headerPillY, headerPillW, headerPillH, headerPillH / 2);
-    this.add.text(headerPillX + 18, headerPillY + headerPillH / 2, '⚒️', {
+    this.add.text(headerPillX + 18, headerPillY + headerPillH / 2 + 3, '⚒️', {
       fontSize: '20px', padding: { top: 2, bottom: 2 },
-    }).setOrigin(0.5, 0.6);
+    }).setOrigin(0.5, 0.5);
     this.add.text(headerPillX + 36, headerPillY + headerPillH / 2, 'DRILL', {
       fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#12172A',
     }).setOrigin(0, 0.5);
@@ -300,10 +300,10 @@ export class UIScene extends Phaser.Scene {
     const pillY = 30;
     this._biomePillBg = this.add.graphics();
     this._drawPill(this._biomePillBg, pillX, pillY, pillW, pillH, 0x1A1F2E, 1.0, 0xFFD700, 3);
-    this._biomePillEmoji = this.add.text(pillX + 38, pillY + pillH / 2, '🌍', {
+    this._biomePillEmoji = this.add.text(pillX + 38, pillY + pillH / 2 + 5, '🌍', {
       fontSize: '34px',
       padding: { top: 4, bottom: 4 },
-    }).setOrigin(0.5, 0.6);
+    }).setOrigin(0.5, 0.5);
     this.biomeText = this.add.text(pillX + 80, pillY + pillH / 2, 'EARTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: '24px',
@@ -490,9 +490,9 @@ export class UIScene extends Phaser.Scene {
     const headerPill = this.add.graphics();
     headerPill.fillStyle(0xFFD700, 1.0);
     headerPill.fillRoundedRect(hpX, hpY, hpW, hpH, hpH / 2);
-    this.add.text(hpX + 14, hpY + hpH / 2, '💎', {
+    this.add.text(hpX + 14, hpY + hpH / 2 + 3, '💎', {
       fontSize: '16px', padding: { top: 2, bottom: 2 },
-    }).setOrigin(0.5, 0.6);
+    }).setOrigin(0.5, 0.5);
     this.add.text(hpX + 30, hpY + hpH / 2, 'ORES', {
       fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#12172A',
     }).setOrigin(0, 0.5);
