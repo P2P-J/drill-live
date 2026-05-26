@@ -460,18 +460,20 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  // ── DRILL 패널 아래: 둥근 ORES 패널, 4×3 그리드 ──
+  // ── DRILL 패널 왼쪽: 둥근 ORES 패널, 6×2 가로 그리드 ──
   _buildInventory() {
-    const cols = 4;
-    const rows = 3;
-    const panelW = 280;
-    const panelH = 360;
-    const x = GAME.width - panelW - 16;
-    const y = 436;  // DRILL 패널(200~420) 아래 16px 간격
+    const cols = 6;
+    const rows = 2;
+    const panelW = 400;
+    const panelH = 220;
+    const drillW = 280;
+    const drillRightMargin = 16;
+    const x = GAME.width - drillW - drillRightMargin - 12 - panelW;
+    const y = 200;  // DRILL과 같은 y
     const radius = 16;
     const cellW = panelW / cols;
-    const headerH = 50;
-    const gridH = panelH - headerH - 12;
+    const headerH = 46;
+    const gridH = panelH - headerH - 10;
     const cellH = gridH / rows;
 
     // 둥근 박스 배경
@@ -531,16 +533,16 @@ export class UIScene extends Phaser.Scene {
       icon.setScale(baseScale).setAlpha(0.35);
 
       // 이름 (가운데)
-      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 6, ore.name, {
+      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 4, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '10px',
+        fontSize: '11px',
         color: '#8C95A3',
       }).setOrigin(0.5, 0);
 
-      // 카운트 — bottom 정렬, 칸 안 바닥에서 +6
-      const count = this.add.text(cx, cellY + cellInnerH - 6, '0', {
+      // 카운트 — bottom 정렬, 칸 안 바닥에서 +5
+      const count = this.add.text(cx, cellY + cellInnerH - 5, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '20px',
+        fontSize: '18px',
         color: '#FFD700',
       }).setOrigin(0.5, 1.0);
 
