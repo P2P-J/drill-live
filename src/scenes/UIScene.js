@@ -29,6 +29,7 @@ export class UIScene extends Phaser.Scene {
 
   create() {
     this._buildTopHud();
+    this._buildBiomeTracker();  // 좌측 세로 6개 원형
     this._buildInventory();
     this._buildBottomBar();
     this._buildStatsPanel();
@@ -44,57 +45,80 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  // 우측 상단 — 드릴 스펙(파워/범위/엔진) + 현재 속도 배율(버프 포함)
+  // 우측 — 둥근 모서리 DRILL 패널 (게임 톤)
   _buildStatsPanel() {
-    const w = 280, h = 300;
-    const x = GAME.width - w - 12;
-    const y = 280;
-    this.add.rectangle(x, y, w, h, 0x000000, 0.72).setOrigin(0, 0).setStrokeStyle(3, 0xFFD700, 0.8);
+    const w = 280, h = 220;
+    const x = GAME.width - w - 16;
+    const y = 200;
+    const radius = 16;
 
-    // 타이틀
-    this.add.text(x + w / 2, y + 6, '⛏️ DRILL STATS', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD700',
-    }).setOrigin(0.5, 0);
+    // 둥근 박스
+    const panel = this.add.graphics();
+    panel.fillStyle(0x12172A, 0.92);
+    panel.fillRoundedRect(x, y, w, h, radius);
+    panel.lineStyle(2, 0x2A3045, 1.0);
+    panel.strokeRoundedRect(x, y, w, h, radius);
 
-    // 행 — 한 row 높이 56 (h 300에 맞춰 여유)
-    const rowH = 56;
-    const firstRowY = y + 42;
+    // 헤더 — 작은 알약 모양 [🌍 DRILL]
+    const headerPillX = x + 16;
+    const headerPillY = y + 12;
+    const headerPillW = 88;
+    const headerPillH = 28;
+    const headerPill = this.add.graphics();
+    headerPill.fillStyle(0xFFD700, 1.0);
+    headerPill.fillRoundedRect(headerPillX, headerPillY, headerPillW, headerPillH, headerPillH / 2);
+    this.add.text(headerPillX + 14, headerPillY + headerPillH / 2, '⚒️', {
+      fontSize: '16px', padding: { top: 2, bottom: 2 },
+    }).setOrigin(0.5, 0.6);
+    this.add.text(headerPillX + 30, headerPillY + headerPillH / 2, 'DRILL', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#12172A',
+    }).setOrigin(0, 0.5);
+
+    // 행 — 한 row 36px
+    const rowH = 36;
+    const firstRowY = y + 56;
     const rowY = (i) => firstRowY + i * rowH;
-    const ROW_BAR_W = w - 28;
-    const ROW_BAR_H = 8;
+    const barX = x + 16;
+    const barW = w - 32;
+    const barH_ = 4;
 
     this._statRows = [];
 
-    const addRow = (i, key, emoji, labelText, maxLv, fillColor) => {
+    const addRow = (i, key, labelText, maxLv, fillColor) => {
       const ry = rowY(i);
-      // 이모지 + 라벨 (좌측)
-      const label = this.add.text(x + 14, ry, `${emoji} ${labelText}`, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFFFFF',
+      const label = this.add.text(x + 16, ry, labelText, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#8C95A3',
       });
-      // Lv / max (우측)
-      const value = this.add.text(x + w - 14, ry, `Lv 1 / ${maxLv}`, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD54F',
+      const value = this.add.text(x + w - 16, ry, `1 / ${maxLv}`, {
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '16px', color: '#FFFFFF',
       }).setOrigin(1, 0);
-      // 진행바 (라벨 아래)
+      // 진행바
       const barY = ry + 22;
-      this.add.rectangle(x + 14, barY, ROW_BAR_W, ROW_BAR_H, 0x222222).setOrigin(0, 0);
-      const barFill = this.add.rectangle(x + 14, barY, ROW_BAR_W, ROW_BAR_H, fillColor).setOrigin(0, 0);
-      barFill.scaleX = 1 / maxLv;
-      this._statRows.push({ key, label, value, barFill, maxLv });
+      const barBg = this.add.graphics();
+      barBg.fillStyle(0x2A3045, 1.0);
+      barBg.fillRoundedRect(barX, barY, barW, barH_, barH_ / 2);
+      const barFill = this.add.graphics();
+      const drawFill = (frac) => {
+        barFill.clear();
+        barFill.fillStyle(fillColor, 1.0);
+        const fw = Math.max(barH_, barW * Math.max(0, Math.min(1, frac)));
+        barFill.fillRoundedRect(barX, barY, fw, barH_, barH_ / 2);
+      };
+      drawFill(1 / maxLv);
+      this._statRows.push({ key, label, value, barFill, drawFill, maxLv });
     };
 
-    addRow(0, 'drillPower', '⚒️', 'POWER',  5, 0x4CAF50);
-    addRow(1, 'drillRange', '↔️', 'RANGE',  3, 0xFF9800);
-    addRow(2, 'engine',     '⚙️', 'ENGINE', 3, 0x03A9F4);
+    addRow(0, 'drillPower', 'POWER',  5, 0xE91E63);   // 분홍
+    addRow(1, 'drillRange', 'RANGE',  3, 0xFF8A65);   // 코랄
+    addRow(2, 'engine',     'ENGINE', 3, 0x4FC3F7);   // 청록
 
-    // SPEED — 누적 배율 (가장 강조)
+    // SPEED — 가장 강조
     const speedY = rowY(3) + 4;
-    this.statSpeedLabel = this.add.text(x + 14, speedY, '⚡ SPEED', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', color: '#FFFFFF',
+    this.statSpeedLabel = this.add.text(x + 16, speedY, 'SPEED', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#8C95A3',
     });
-    this.statSpeedValue = this.add.text(x + w - 14, speedY, '×1.0', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '24px', color: '#FFEB3B',
-      stroke: '#000000', strokeThickness: 3,
+    this.statSpeedValue = this.add.text(x + w - 16, speedY, '×1.0', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', color: '#4CD964',
     }).setOrigin(1, 0);
   }
 
@@ -102,27 +126,25 @@ export class UIScene extends Phaser.Scene {
     if (!this.upgradeSystem) return;
     for (const row of this._statRows ?? []) {
       const lv = this.upgradeSystem.getLevel(row.key);
-      // POWER 행은 드릴 이름 표시 (Wood Drill / Stone Drill / Iron Drill / Gold Drill / Diamond Drill)
       if (row.key === 'drillPower') {
         row.value.setText(this.upgradeSystem.getDrillName());
       } else {
-        row.value.setText(`Lv ${lv} / ${row.maxLv}`);
+        row.value.setText(`${lv} / ${row.maxLv}`);
       }
-      row.barFill.scaleX = Math.min(1, lv / row.maxLv);
-      // 임시 업그레이드 활성 시 잔여시간 비율로 라벨 색 강조 (임시 = 30초 카운트다운)
+      row.drawFill(lv / row.maxLv);
+      // 임시 업그레이드 활성 시 라벨 색 강조
       const tempFrac = this.upgradeSystem.remainingFrac(row.key);
-      row.label.setColor(tempFrac > 0 ? '#FFEB3B' : '#FFFFFF');
+      row.label.setColor(tempFrac > 0 ? '#FFD700' : '#8C95A3');
     }
-    // SPEED = drillPower 누적 × drillPowerUp 버프 (= 드릴 속도 실효 배율)
+    // SPEED = drillPower 누적 × drillPowerUp 버프
     const baseMult = this.upgradeSystem.getDrillSpeedMult?.() ?? 1.0;
     let buffMult = 1.0;
     const dpu = this.buffSystem?.get?.('drillPowerUp');
     if (dpu) buffMult *= dpu.params.mult ?? 1.0;
     const effective = baseMult * buffMult;
     this.statSpeedValue.setText(`×${effective.toFixed(2)}`);
-    // 버프 또는 임시 업그레이드 활성 시 빨간 강조
     const anyActive = buffMult > 1.001 || this.upgradeSystem.getLevel('drillPower') > 1;
-    this.statSpeedValue.setColor(anyActive ? '#FF5252' : '#FFEB3B');
+    this.statSpeedValue.setColor(anyActive ? '#FF5252' : '#4CD964');
   }
 
   _buildAnnouncement() {
@@ -198,9 +220,10 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    // 우측: 인벤토리가 stats 아래 500~990 차지. buff는 그 아래로
-    this.buffArea   = { x: GAME.width - 312, y: 1010, w: 300 };
-    this.debuffArea = { x: 12,               y: 270,  w: 300 };  // 좌측 상단 (인벤 비워졌으니)
+    // 우측: DRILL(200~420) + ORES(436~796) 차지. buff는 그 아래.
+    this.buffArea   = { x: GAME.width - 312, y: 810, w: 296 };
+    // 좌측: 세로 바이옴 트래커가 (~870)까지. debuff는 그 아래.
+    this.debuffArea = { x: 80,               y: 880, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -229,133 +252,259 @@ export class UIScene extends Phaser.Scene {
     this.buffIndicators.set(id, { container, labelText, timeText, bar, isDebuff });
   }
 
-  // ── 상단: DEPTH + GOLD (한 줄) → 6개 바이옴 박스 → 현재 바이옴 이름 ──
+  // ── 상단 HUD: 좌측 DEPTH | 가운데 알약 바이옴 | 우측 GOLD + 진행도 막대 ──
   _buildTopHud() {
-    const barH = 270;
-    this.add.rectangle(0, 0, GAME.width, barH, 0x0A0E1A, 0.85).setOrigin(0, 0);
-    this.add.rectangle(0, barH - 4, GAME.width, 4, 0xFFD700, 1.0).setOrigin(0, 0);
+    const barH = 150;
+    // 어두운 배경
+    this.add.rectangle(0, 0, GAME.width, barH, 0x0A0E1A, 0.92).setOrigin(0, 0);
 
-    // DEPTH 라벨 (작게, 가운데 위)
-    this.add.text(GAME.width / 2, 12, 'DEPTH', {
+    // ── 좌측: DEPTH 라벨 + 값 ──
+    this.add.text(28, 22, 'DEPTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '20px',
-      color: '#FFD700',
-    }).setOrigin(0.5, 0);
-
-    // DEPTH 값 (가운데, 적당히 큰 폰트)
-    this.depthText = this.add.text(GAME.width / 2, 32, '0 km', {
+      fontSize: '18px',
+      color: '#8C95A3',
+    }).setOrigin(0, 0);
+    this.depthText = this.add.text(28, 44, '0 km', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '48px',
+      fontSize: '40px',
       color: '#FFFFFF',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5, 0);
+    }).setOrigin(0, 0);
 
-    // GOLD (우측 상단, DEPTH와 겹치지 않게 작게)
-    this.goldText = this.add.text(GAME.width - 24, 18, '0 G', {
+    // ── 우측: GOLD 라벨 + 값 ──
+    this.add.text(GAME.width - 28, 22, 'GOLD', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '26px',
+      fontSize: '18px',
+      color: '#8C95A3',
+    }).setOrigin(1, 0);
+    this.goldText = this.add.text(GAME.width - 28, 44, '0', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '40px',
       color: '#FFD700',
-      stroke: '#000000',
-      strokeThickness: 3,
     }).setOrigin(1, 0);
 
-    // 6개 바이옴 진행 트래커
+    // ── 가운데: 알약 모양 [🌍 EARTH] ──
     this._biomeDefs = [
-      { id: 'earth',    emoji: '🌍', name: 'EARTH' },
-      { id: 'crystal',  emoji: '💎', name: 'CRYSTAL' },
-      { id: 'abyssal',  emoji: '🌊', name: 'ABYSS' },
-      { id: 'forest',   emoji: '🌲', name: 'FOREST' },
-      { id: 'magma',    emoji: '🔥', name: 'MAGMA' },
-      { id: 'void',     emoji: '🌌', name: 'VOID' },
+      { id: 'earth',    emoji: '🌍', name: 'EARTH',   shortLabel: 'E' },
+      { id: 'crystal',  emoji: '💎', name: 'CRYSTAL', shortLabel: 'C' },
+      { id: 'abyssal',  emoji: '🌊', name: 'ABYSS',   shortLabel: 'A' },
+      { id: 'forest',   emoji: '🌲', name: 'FOREST',  shortLabel: 'F' },
+      { id: 'magma',    emoji: '🔥', name: 'MAGMA',   shortLabel: 'M' },
+      { id: 'void',     emoji: '🌌', name: 'VOID',    shortLabel: 'V' },
     ];
 
-    // 마진 50px씩 좌우, 그 안에 6개 균등 배치. 박스 100px + 이모지 origin 보정으로 짤림 해결.
-    const margin = 50;
-    const usableW = GAME.width - margin * 2;
-    const boxSize = 100;
-    const gap = (usableW - boxSize * this._biomeDefs.length) / (this._biomeDefs.length - 1);
-    const iconY = 156;
-    const startX = margin + boxSize / 2;
-
-    this._biomeIcons = this._biomeDefs.map((b, i) => {
-      const x = startX + i * (boxSize + gap);
-      const bg = this.add.rectangle(x, iconY, boxSize, boxSize, 0x000000, 0.5).setStrokeStyle(2, 0x444444);
-      // 이모지: Phaser text는 ascent 영역까지 bounding box에 포함되어 setOrigin(0.5,0.5)면
-      // 위로 치우침. origin(0.5, 0.62) + 폰트 sat 적당히 + y는 박스 중앙 그대로.
-      const text = this.add.text(x, iconY, b.emoji, {
-        fontSize: '54px',
-        padding: { top: 6, bottom: 6 },
-      }).setOrigin(0.5, 0.62).setAlpha(0.4);
-      return { id: b.id, name: b.name, bg, text };
-    });
-
-    // 현재 바이옴 이름 (박스 아래, 골드 라인과 겹치지 않게 충분히 위)
-    this.biomeText = this.add.text(GAME.width / 2, 220, 'EARTH', {
+    const pillW = 240;
+    const pillH = 60;
+    const pillX = (GAME.width - pillW) / 2;
+    const pillY = 30;
+    this._biomePillBg = this.add.graphics();
+    this._drawPill(this._biomePillBg, pillX, pillY, pillW, pillH, 0x1A1F2E, 1.0, 0xFFD700, 3);
+    this._biomePillEmoji = this.add.text(pillX + 38, pillY + pillH / 2, '🌍', {
+      fontSize: '34px',
+      padding: { top: 4, bottom: 4 },
+    }).setOrigin(0.5, 0.6);
+    this.biomeText = this.add.text(pillX + 80, pillY + pillH / 2, 'EARTH', {
       fontFamily: 'Arial Black, Arial, sans-serif',
       fontSize: '24px',
-      color: '#FFD700',
-    }).setOrigin(0.5, 0);
+      color: '#FFFFFF',
+    }).setOrigin(0, 0.5);
+
+    // ── 진행도 막대 (상단 HUD 아래) ──
+    const trackY = 110;
+    const trackX = 32;
+    const trackW = GAME.width - 64;
+    const trackH = 14;
+    this._progressBg = this.add.graphics();
+    this._drawPill(this._progressBg, trackX, trackY, trackW, trackH, 0x1A1F2E, 1.0, 0x333A4A, 1);
+    this._progressFill = this.add.graphics();
+    this.progressInfo = { x: trackX, y: trackY, w: trackW, h: trackH };
+
+    // 좌 "EARTH" 우 "NEXT →" 라벨
+    this.progressLeftText = this.add.text(trackX + 4, trackY - 18, 'EARTH', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '12px',
+      color: '#8C95A3',
+    }).setOrigin(0, 0);
+    this.progressRightText = this.add.text(trackX + trackW - 4, trackY - 18, 'NEXT →', {
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: '12px',
+      color: '#8C95A3',
+    }).setOrigin(1, 0);
   }
 
-  _highlightBiome(biomeId) {
-    for (const icon of this._biomeIcons ?? []) {
-      const active = icon.id === biomeId;
-      icon.bg.setStrokeStyle(active ? 4 : 2, active ? 0xFFD700 : 0x444444);
-      icon.bg.setFillStyle(active ? 0xFFD700 : 0x000000, active ? 0.25 : 0.5);
-      icon.text.setAlpha(active ? 1.0 : 0.35);
-      icon.text.setScale(active ? 1.15 : 1.0);
+  // 좌측 세로 바이옴 트래커 — 6개 원형 아이콘
+  _buildBiomeTracker() {
+    const trackerX = 36;
+    const trackerStartY = 200;
+    const iconRadius = 22;
+    const iconSpacing = 110;
+
+    this._biomeTrackerIcons = this._biomeDefs.map((b, i) => {
+      const cy = trackerStartY + i * iconSpacing;
+      // 점선 활성 테두리용 그래픽 (활성일 때만 표시)
+      const dashRing = this.add.graphics().setVisible(false);
+      // 배경 원 (회색)
+      const bgCircle = this.add.graphics();
+      bgCircle.fillStyle(0x1A1F2E, 1.0);
+      bgCircle.fillCircle(trackerX, cy, iconRadius);
+      bgCircle.lineStyle(2, 0x333A4A, 1.0);
+      bgCircle.strokeCircle(trackerX, cy, iconRadius);
+      // 이모지
+      const emoji = this.add.text(trackerX, cy, b.emoji, {
+        fontSize: '24px',
+        padding: { top: 4, bottom: 4 },
+      }).setOrigin(0.5, 0.6).setAlpha(0.4);
+      // 라벨 (아이콘 아래)
+      const label = this.add.text(trackerX, cy + iconRadius + 6, b.shortLabel, {
+        fontFamily: 'Arial Black, Arial, sans-serif',
+        fontSize: '14px',
+        color: '#8C95A3',
+      }).setOrigin(0.5, 0);
+
+      const setActive = (active) => {
+        if (active) {
+          dashRing.clear();
+          dashRing.lineStyle(3, 0xFFD700, 1.0);
+          // 간단한 점선 — 12조각
+          const segments = 12;
+          for (let s = 0; s < segments; s++) {
+            if (s % 2 === 0) {
+              const a0 = (s / segments) * Math.PI * 2;
+              const a1 = ((s + 1) / segments) * Math.PI * 2;
+              dashRing.beginPath();
+              dashRing.arc(trackerX, cy, iconRadius + 6, a0, a1, false);
+              dashRing.strokePath();
+            }
+          }
+          dashRing.setVisible(true);
+          bgCircle.clear();
+          bgCircle.fillStyle(0xFFD700, 0.18);
+          bgCircle.fillCircle(trackerX, cy, iconRadius);
+          bgCircle.lineStyle(2, 0xFFD700, 1.0);
+          bgCircle.strokeCircle(trackerX, cy, iconRadius);
+          emoji.setAlpha(1.0);
+          label.setColor('#FFD700');
+        } else {
+          dashRing.setVisible(false);
+          bgCircle.clear();
+          bgCircle.fillStyle(0x1A1F2E, 1.0);
+          bgCircle.fillCircle(trackerX, cy, iconRadius);
+          bgCircle.lineStyle(2, 0x333A4A, 1.0);
+          bgCircle.strokeCircle(trackerX, cy, iconRadius);
+          emoji.setAlpha(0.4);
+          label.setColor('#8C95A3');
+        }
+      };
+
+      return { id: b.id, name: b.name, setActive };
+    });
+  }
+
+  // 알약 모양 (rounded full-radius rectangle)
+  _drawPill(graphics, x, y, w, h, fillColor, fillAlpha, strokeColor, strokeWidth) {
+    const r = h / 2;
+    graphics.clear();
+    if (fillColor !== undefined) {
+      graphics.fillStyle(fillColor, fillAlpha ?? 1.0);
+      graphics.fillRoundedRect(x, y, w, h, r);
     }
-    const cur = this._biomeIcons?.find((b) => b.id === biomeId);
-    if (cur) this.biomeText.setText(cur.name);
+    if (strokeColor !== undefined && strokeWidth) {
+      graphics.lineStyle(strokeWidth, strokeColor, 1.0);
+      graphics.strokeRoundedRect(x, y, w, h, r);
+    }
   }
 
-  // ── DRILL STATS 왼쪽: 4×3 그리드로 광물 12종 ──
+  _highlightBiome(biomeId, km) {
+    const cur = this._biomeDefs.find((b) => b.id === biomeId);
+    if (!cur) return;
+
+    // 가운데 알약 텍스트/이모지 갱신
+    this._biomePillEmoji.setText(cur.emoji);
+    this.biomeText.setText(cur.name);
+
+    // 진행도 막대 갱신
+    const biome = this.biomeManager.getBiomeAt(km);
+    if (biome) {
+      const span = biome.endKm - biome.startKm;
+      const progress = span > 0 ? Math.max(0, Math.min(1, (km - biome.startKm) / span)) : 0;
+      const { x, y, w, h } = this.progressInfo;
+      this._progressFill.clear();
+      this._progressFill.fillStyle(0xFFD700, 1.0);
+      this._progressFill.fillRoundedRect(x, y, Math.max(h, w * progress), h, h / 2);
+      // 좌측 라벨: 현재 바이옴 이름
+      this.progressLeftText.setText(cur.name);
+    }
+
+    // 좌측 세로 바이옴 트래커 강조 (Task 2에서 구현)
+    if (this._biomeTrackerIcons) {
+      for (const icon of this._biomeTrackerIcons) {
+        const active = icon.id === biomeId;
+        icon.setActive(active);
+      }
+    }
+  }
+
+  // ── DRILL 패널 아래: 둥근 ORES 패널, 4×3 그리드 ──
   _buildInventory() {
     const cols = 4;
     const rows = 3;
     const panelW = 280;
-    const panelH = 300;
-    const statsX = GAME.width - 280 - 12;  // stats 패널 x
-    const x = statsX - panelW - 10;
-    const y = 280;  // stats와 같은 y
+    const panelH = 360;
+    const x = GAME.width - panelW - 16;
+    const y = 436;  // DRILL 패널(200~420) 아래 16px 간격
+    const radius = 16;
     const cellW = panelW / cols;
-    const headerH = 30;
-    const gridH = panelH - headerH - 8;
+    const headerH = 50;
+    const gridH = panelH - headerH - 12;
     const cellH = gridH / rows;
 
-    // 패널 배경
-    this.add.rectangle(x, y, panelW, panelH, 0x000000, 0.72).setOrigin(0, 0).setStrokeStyle(3, 0xFFD700, 0.8);
-    this.add.text(x + panelW / 2, y + 6, '💎 ORES', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#FFD700',
-    }).setOrigin(0.5, 0);
+    // 둥근 박스 배경
+    const panel = this.add.graphics();
+    panel.fillStyle(0x12172A, 0.92);
+    panel.fillRoundedRect(x, y, panelW, panelH, radius);
+    panel.lineStyle(2, 0x2A3045, 1.0);
+    panel.strokeRoundedRect(x, y, panelW, panelH, radius);
+
+    // 헤더 — 작은 알약 [💎 ORES]
+    const hpX = x + 16, hpY = y + 12, hpW = 88, hpH = 28;
+    const headerPill = this.add.graphics();
+    headerPill.fillStyle(0xFFD700, 1.0);
+    headerPill.fillRoundedRect(hpX, hpY, hpW, hpH, hpH / 2);
+    this.add.text(hpX + 14, hpY + hpH / 2, '💎', {
+      fontSize: '16px', padding: { top: 2, bottom: 2 },
+    }).setOrigin(0.5, 0.6);
+    this.add.text(hpX + 30, hpY + hpH / 2, 'ORES', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#12172A',
+    }).setOrigin(0, 0.5);
 
     const rarityColors = {
-      common:    0x666666,
+      common:    0x4A4F60,
       uncommon:  0x4CAF50,
       rare:      0x2196F3,
       epic:      0x9C27B0,
       legendary: 0xFF9800,
     };
 
-    const iconSize = 38;
+    const iconSize = 36;
     const gridTop = y + headerH;
     this.inventoryItems = {};
 
     ORE_IDS.forEach((id, i) => {
       const ore = ORES[id];
-      const rarityColor = rarityColors[ore.rarity] ?? 0x666666;
+      const rarityColor = rarityColors[ore.rarity] ?? 0x4A4F60;
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const cellX = x + col * cellW;
-      const cellY = gridTop + row * cellH;
-      const cx = cellX + cellW / 2;
+      const cellX = x + col * cellW + 6;
+      const cellY = gridTop + row * cellH + 4;
+      const cellInnerW = cellW - 12;
+      const cellInnerH = cellH - 8;
+      const cx = cellX + cellInnerW / 2;
 
-      // 칸 박스 (rarity 색 stroke) — 칸끼리 1px gap
-      const innerPad = 3;
-      this.add.rectangle(cellX + innerPad, cellY + innerPad, cellW - innerPad * 2, cellH - innerPad * 2, 0x111418, 0.6)
-        .setOrigin(0, 0)
-        .setStrokeStyle(2, rarityColor, 0.75);
+      // 둥근 칸
+      const cellG = this.add.graphics();
+      cellG.fillStyle(0x1A1F2E, 0.95);
+      cellG.fillRoundedRect(cellX, cellY, cellInnerW, cellInnerH, 8);
+      cellG.lineStyle(2, rarityColor, 0.85);
+      cellG.strokeRoundedRect(cellX, cellY, cellInnerW, cellInnerH, 8);
 
       // 아이콘 (상단)
       const gemKey = ensureGemTexture(this, id);
@@ -365,19 +514,17 @@ export class UIScene extends Phaser.Scene {
       icon.setScale(baseScale).setAlpha(0.35);
 
       // 이름 (가운데)
-      const nameText = this.add.text(cx, cellY + cellH / 2 + 6, ore.name, {
+      const nameText = this.add.text(cx, cellY + cellInnerH / 2 + 6, ore.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
-        fontSize: '11px',
-        color: '#FFFFFF',
-      }).setOrigin(0.5, 0).setAlpha(0.5);
+        fontSize: '10px',
+        color: '#8C95A3',
+      }).setOrigin(0.5, 0);
 
-      // 카운트 — origin(0.5, 1.0)로 bottom 정렬, 칸 바닥에서 +6 위
-      const count = this.add.text(cx, cellY + cellH - 6, '0', {
+      // 카운트 — bottom 정렬, 칸 안 바닥에서 +6
+      const count = this.add.text(cx, cellY + cellInnerH - 6, '0', {
         fontFamily: 'Arial Black, Arial, sans-serif',
         fontSize: '20px',
         color: '#FFD700',
-        stroke: '#000000',
-        strokeThickness: 3,
       }).setOrigin(0.5, 1.0);
 
       this.inventoryItems[id] = { icon, count, nameText, baseScale };
@@ -416,8 +563,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _buildOverlay() {
-    // 팝업 — 가운데 상단 (HUD 바 260 아래)
-    this.overlayPopup = this.add.container(GAME.width / 2, 340);
+    // 팝업 — 가운데 상단 (HUD 바 150 아래)
+    this.overlayPopup = this.add.container(GAME.width / 2, 230);
     this.overlayPopup.setDepth(99);
     this.overlayPopup.setVisible(false);
     this.overlayPopupText = this.add.text(0, 0, '', {
@@ -528,12 +675,13 @@ export class UIScene extends Phaser.Scene {
   _wireEvents() {
     gameState.on('depth', (km) => {
       this.depthText.setText(`${km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km`);
-      const biome = this.biomeManager.getBiomeAt(Math.max(0, km));
-      this._highlightBiome(biome?.id ?? 'earth');
+      const safeKm = Math.max(0, km);
+      const biome = this.biomeManager.getBiomeAt(safeKm);
+      this._highlightBiome(biome?.id ?? 'earth', safeKm);
     });
 
     gameState.on('gold', (g) => {
-      this.goldText.setText(`${g.toLocaleString()} G`);
+      this.goldText.setText(g.toLocaleString());
     });
 
     // 채팅 임시 업그레이드 — 시청자가 골드 차감해서 30초 buff 발동
