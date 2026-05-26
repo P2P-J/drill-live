@@ -82,18 +82,29 @@ export class GameScene extends Phaser.Scene {
   }
 
   _setupDebugKeys() {
-    // G: 골드 +10,000
-    this.input.keyboard.on('keydown-G', () => {
-      gameState.addGold(10000);
+    // G: DRILL_GOLD (드릴 컨셉 변경). SHIFT+G: 골드 +100,000 디버그
+    this.input.keyboard.on('keydown-G', (e) => {
+      if (e.shiftKey) {
+        gameState.addGold(100000);
+      } else {
+        this.triggerSystem.fire('DRILL_GOLD');
+      }
     });
 
-    // D: 깊이 +1,000km 점프. SHIFT+D: +50,000km 점프 (바이옴 빠른 확인용)
+    // D: DRILL_DIAMOND. SHIFT+D: 깊이 +50,000km 점프 (바이옴 빠른 확인용)
     this.input.keyboard.on('keydown-D', (e) => {
-      const jumpKm = e.shiftKey ? 50000 : 1000;
-      this.driller.y += jumpKm * GAME.pxPerKm;
-      this.driller.container.y = this.driller.y;
-      this.tileMap.update(this.driller.y);
+      if (e.shiftKey) {
+        const jumpKm = 50000;
+        this.driller.y += jumpKm * GAME.pxPerKm;
+        this.driller.container.y = this.driller.y;
+        this.tileMap.update(this.driller.y);
+      } else {
+        this.triggerSystem.fire('DRILL_DIAMOND');
+      }
     });
+
+    // W: DRILL_WOOD (FAST는 Q로 옮김)
+    this.input.keyboard.on('keydown-Q', () => this.triggerSystem.fire('FAST'));
 
     // R: drillRange 채팅 업그레이드 시뮬레이션 — 디버그용이라 골드 자동 충전 후 발동
     this.input.keyboard.on('keydown-R', () => {
@@ -105,13 +116,15 @@ export class GameScene extends Phaser.Scene {
       if (gameState.gold < 500000) gameState.addGold(500000);
       this.triggerSystem.fire('UPGRADE_ENGINE');
     });
-    // 드릴 변경 테스트 — 디버그용이라 골드 자동 충전 후 발동
-    const DRILL_KEYS = { 'S': 'DRILL_STONE', 'I': 'DRILL_IRON' };
+    // 드릴 컨셉 변경 — 무료(컨셉만 바뀜, 3초 유지)
+    const DRILL_KEYS = {
+      'W': 'DRILL_WOOD',
+      'S': 'DRILL_STONE',
+      'I': 'DRILL_IRON',
+      // G, D는 위에서 shiftKey 분기로 처리
+    };
     for (const [key, triggerId] of Object.entries(DRILL_KEYS)) {
-      this.input.keyboard.on(`keydown-${key}`, () => {
-        if (gameState.gold < 2000000) gameState.addGold(2000000);
-        this.triggerSystem.fire(triggerId);
-      });
+      this.input.keyboard.on(`keydown-${key}`, () => this.triggerSystem.fire(triggerId));
     }
 
     // === 후원 시뮬레이션 키보드 매핑 (Phase 3 테스트용) ===
@@ -122,7 +135,6 @@ export class GameScene extends Phaser.Scene {
       'FOUR':  'NUKE',         // $20 — NUKE ×5
       'FIVE':  'DRILL_UP',     // $2  — ×2.0 / 30s
       'SEVEN': 'OVERDRIVE',    // $10 — ×7.0 / 30s
-      'W':     'FAST',         // !fast
       'E':     'SUB',          // 신규 구독 — 드릴 아래 10줄 바이옴 특수광물 채우기
       'L':     'LIKE',         // 좋아요 (3초 sizzle, 이름 합산)
       'F':     'JACKPOT',      // !jackpot — 전 레이어 다이아 파티 (스트리머)
