@@ -362,11 +362,11 @@ export class UIScene extends Phaser.Scene {
       bgCircle.fillCircle(trackerX, cy, iconRadius);
       bgCircle.lineStyle(2, 0x333A4A, 1.0);
       bgCircle.strokeCircle(trackerX, cy, iconRadius);
-      // 이모지 (크게)
+      // 이모지 — origin Y를 0.7로 더 내려서 원 정중앙에 오게 보정
       const emoji = this.add.text(trackerX, cy, b.emoji, {
-        fontSize: '36px',
-        padding: { top: 6, bottom: 6 },
-      }).setOrigin(0.5, 0.62).setAlpha(0.4);
+        fontSize: '40px',
+        padding: { top: 10, bottom: 10 },
+      }).setOrigin(0.5, 0.7).setAlpha(0.4);
       // 라벨 — 이모지 아래 풀 이름
       const label = this.add.text(trackerX, cy + iconRadius + 12, b.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
