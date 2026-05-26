@@ -88,13 +88,13 @@ export class ExplosionEffect {
       color: '#000000',
     }).setOrigin(0.5, -1.0).setDepth(81);
 
-    // 좋아요/후원자 이름 표시 (TNT 위쪽에 떠 있음)
+    // 좋아요/후원자 이름 표시 (TNT 위쪽에 떠 있음) — 흰색 + 검정 테두리
     const namesText = this.scene.add.text(targetX, startY - 40, '', {
       fontFamily: 'Arial Black, Arial, sans-serif',
-      fontSize: '18px',
-      color: '#FFEB3B',
+      fontSize: '20px',
+      color: '#FFFFFF',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 6,
       align: 'center',
     }).setOrigin(0.5, 1.0).setDepth(82);
 

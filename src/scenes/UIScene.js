@@ -220,10 +220,10 @@ export class UIScene extends Phaser.Scene {
 
   _buildBuffArea() {
     // 버프(긍정) 우측 — 스탯 패널 아래, 디버프(부정) 좌측 — 인벤토리 옆
-    // 우측: DRILL(200~420) + ORES(436~796) 차지. buff는 그 아래.
+    // 우측: DRILL(200~420) + ORES(436~796). buff는 그 아래.
     this.buffArea   = { x: GAME.width - 312, y: 810, w: 296 };
-    // 좌측: 세로 바이옴 트래커가 (~870)까지. debuff는 그 아래.
-    this.debuffArea = { x: 80,               y: 880, w: 300 };
+    // 좌측: 세로 바이옴 트래커가 (~1550)까지 차지. debuff는 트래커 끝나는 자리 아래.
+    this.debuffArea = { x: 120,              y: 1600, w: 300 };
   }
 
   _addBuffIndicator(id, label, color, isDebuff = false) {
@@ -331,57 +331,71 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(1, 0);
   }
 
-  // 좌측 세로 바이옴 트래커 — 6개 원형 아이콘
+  // 좌측 세로 바이옴 트래커 — 6개 원형 아이콘 (큰 사이즈, 라벨 아래, 점선 연결)
   _buildBiomeTracker() {
-    const trackerX = 36;
-    const trackerStartY = 200;
-    const iconRadius = 22;
-    const iconSpacing = 110;
+    const trackerX = 50;
+    const trackerStartY = 220;
+    const iconRadius = 30;
+    const iconSpacing = 260;  // 길이 2배 (이전 110)
+
+    // 원과 원 사이 세로 점선 연결
+    const dotsG = this.add.graphics();
+    dotsG.fillStyle(0x444A5A, 1.0);
+    for (let i = 0; i < this._biomeDefs.length - 1; i++) {
+      const cy1 = trackerStartY + i * iconSpacing;
+      const cy2 = trackerStartY + (i + 1) * iconSpacing;
+      // 라벨이 원 아래 ~30px 차지하니까 그 아래부터 다음 원 위까지 점선
+      const startY = cy1 + iconRadius + 36;
+      const endY = cy2 - iconRadius - 8;
+      const dotR = 3;
+      const dotGap = 14;
+      for (let y = startY; y < endY; y += dotGap) {
+        dotsG.fillCircle(trackerX, y, dotR);
+      }
+    }
 
     this._biomeTrackerIcons = this._biomeDefs.map((b, i) => {
       const cy = trackerStartY + i * iconSpacing;
-      // 점선 활성 테두리용 그래픽 (활성일 때만 표시)
       const dashRing = this.add.graphics().setVisible(false);
-      // 배경 원 (회색)
       const bgCircle = this.add.graphics();
       bgCircle.fillStyle(0x1A1F2E, 1.0);
       bgCircle.fillCircle(trackerX, cy, iconRadius);
       bgCircle.lineStyle(2, 0x333A4A, 1.0);
       bgCircle.strokeCircle(trackerX, cy, iconRadius);
-      // 이모지
+      // 이모지 (크게)
       const emoji = this.add.text(trackerX, cy, b.emoji, {
-        fontSize: '24px',
-        padding: { top: 4, bottom: 4 },
-      }).setOrigin(0.5, 0.6).setAlpha(0.4);
-      // 라벨 — 아이콘 우측에 풀 이름 (게임 영역 갈색 위에 살짝 침범)
-      const label = this.add.text(trackerX + iconRadius + 14, cy, b.name, {
+        fontSize: '36px',
+        padding: { top: 6, bottom: 6 },
+      }).setOrigin(0.5, 0.62).setAlpha(0.4);
+      // 라벨 — 이모지 아래 풀 이름
+      const label = this.add.text(trackerX, cy + iconRadius + 12, b.name, {
         fontFamily: 'Arial Black, Arial, sans-serif',
         fontSize: '16px',
         color: '#8C95A3',
         stroke: '#000000',
         strokeThickness: 4,
-      }).setOrigin(0, 0.5);
+      }).setOrigin(0.5, 0);
 
       const setActive = (active) => {
         if (active) {
           dashRing.clear();
-          dashRing.lineStyle(3, 0xFFD700, 1.0);
-          // 간단한 점선 — 12조각
-          const segments = 12;
+          dashRing.lineStyle(4, 0xFFD700, 1.0);
+          // 점선 outer ring — 16조각
+          const segments = 16;
           for (let s = 0; s < segments; s++) {
             if (s % 2 === 0) {
               const a0 = (s / segments) * Math.PI * 2;
               const a1 = ((s + 1) / segments) * Math.PI * 2;
               dashRing.beginPath();
-              dashRing.arc(trackerX, cy, iconRadius + 6, a0, a1, false);
+              dashRing.arc(trackerX, cy, iconRadius + 8, a0, a1, false);
               dashRing.strokePath();
             }
           }
           dashRing.setVisible(true);
           bgCircle.clear();
-          bgCircle.fillStyle(0xFFD700, 0.18);
+          bgCircle.fillStyle(0xFFD700, 0.22);
           bgCircle.fillCircle(trackerX, cy, iconRadius);
-          bgCircle.lineStyle(2, 0xFFD700, 1.0);
+          bgCircle.lineStyle(3, 0xFFD700, 1.0);
           bgCircle.strokeCircle(trackerX, cy, iconRadius);
           emoji.setAlpha(1.0);
           label.setColor('#FFD700');
