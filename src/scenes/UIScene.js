@@ -59,41 +59,41 @@ export class UIScene extends Phaser.Scene {
     panel.lineStyle(2, 0x2A3045, 1.0);
     panel.strokeRoundedRect(x, y, w, h, radius);
 
-    // 헤더 — 작은 알약 모양 [🌍 DRILL]
+    // 헤더 — 알약 모양 [⚒️ DRILL]
     const headerPillX = x + 16;
-    const headerPillY = y + 12;
-    const headerPillW = 88;
-    const headerPillH = 28;
+    const headerPillY = y + 14;
+    const headerPillW = 116;
+    const headerPillH = 36;
     const headerPill = this.add.graphics();
     headerPill.fillStyle(0xFFD700, 1.0);
     headerPill.fillRoundedRect(headerPillX, headerPillY, headerPillW, headerPillH, headerPillH / 2);
-    this.add.text(headerPillX + 14, headerPillY + headerPillH / 2, '⚒️', {
-      fontSize: '16px', padding: { top: 2, bottom: 2 },
+    this.add.text(headerPillX + 18, headerPillY + headerPillH / 2, '⚒️', {
+      fontSize: '20px', padding: { top: 2, bottom: 2 },
     }).setOrigin(0.5, 0.6);
-    this.add.text(headerPillX + 30, headerPillY + headerPillH / 2, 'DRILL', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '14px', color: '#12172A',
+    this.add.text(headerPillX + 36, headerPillY + headerPillH / 2, 'DRILL', {
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '18px', color: '#12172A',
     }).setOrigin(0, 0.5);
 
-    // 행 — 한 row 36px
-    const rowH = 36;
-    const firstRowY = y + 56;
+    // 행 — 한 row 50px
+    const rowH = 50;
+    const firstRowY = y + 70;
     const rowY = (i) => firstRowY + i * rowH;
     const barX = x + 16;
     const barW = w - 32;
-    const barH_ = 4;
+    const barH_ = 8;
 
     this._statRows = [];
 
     const addRow = (i, key, labelText, maxLv, fillColor) => {
       const ry = rowY(i);
       const label = this.add.text(x + 16, ry, labelText, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#8C95A3',
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '19px', color: '#8C95A3',
       });
       const value = this.add.text(x + w - 16, ry, `1 / ${maxLv}`, {
-        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '16px', color: '#FFFFFF',
+        fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '22px', color: '#FFFFFF',
       }).setOrigin(1, 0);
       // 진행바
-      const barY = ry + 22;
+      const barY = ry + 30;
       const barBg = this.add.graphics();
       barBg.fillStyle(0x2A3045, 1.0);
       barBg.fillRoundedRect(barX, barY, barW, barH_, barH_ / 2);
@@ -108,17 +108,17 @@ export class UIScene extends Phaser.Scene {
       this._statRows.push({ key, label, value, barFill, drawFill, maxLv });
     };
 
-    addRow(0, 'drillPower', 'POWER',  5, 0xE91E63);   // 분홍
-    addRow(1, 'drillRange', 'RANGE',  3, 0xFF8A65);   // 코랄
-    addRow(2, 'engine',     'ENGINE', 3, 0x4FC3F7);   // 청록
+    addRow(0, 'drillPower', 'POWER',  5, 0xE91E63);
+    addRow(1, 'drillRange', 'RANGE',  3, 0xFF8A65);
+    addRow(2, 'engine',     'ENGINE', 3, 0x4FC3F7);
 
     // SPEED — 가장 강조
     const speedY = rowY(3) + 4;
     this.statSpeedLabel = this.add.text(x + 16, speedY, 'SPEED', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '15px', color: '#8C95A3',
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '19px', color: '#8C95A3',
     });
     this.statSpeedValue = this.add.text(x + w - 16, speedY, '×1.0', {
-      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '20px', color: '#4CD964',
+      fontFamily: 'Arial Black, Arial, sans-serif', fontSize: '26px', color: '#4CD964',
     }).setOrigin(1, 0);
   }
 
@@ -464,7 +464,7 @@ export class UIScene extends Phaser.Scene {
   _buildInventory() {
     const cols = 6;
     const rows = 2;
-    const panelW = 480;
+    const panelW = 520;
     const panelH = 280;
     const drillW = 320;
     const drillRightMargin = 16;
