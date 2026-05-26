@@ -95,15 +95,23 @@ export class GameScene extends Phaser.Scene {
       this.tileMap.update(this.driller.y);
     });
 
-    // R: drillRange 채팅 업그레이드 시뮬레이션 (UPGRADE_RANGE 트리거)
-    this.input.keyboard.on('keydown-R', () => this.triggerSystem.fire('UPGRADE_RANGE'));
-    // U: engine 채팅 업그레이드 시뮬레이션 (UPGRADE_ENGINE 트리거)
-    this.input.keyboard.on('keydown-U', () => this.triggerSystem.fire('UPGRADE_ENGINE'));
-    // 드릴 변경 테스트 — 자판 상단 letter (mnemonic: stone, iron 등 일부만)
-    // 나머지는 chat / server CLI로 테스트.
+    // R: drillRange 채팅 업그레이드 시뮬레이션 — 디버그용이라 골드 자동 충전 후 발동
+    this.input.keyboard.on('keydown-R', () => {
+      if (gameState.gold < 1000000) gameState.addGold(1000000);
+      this.triggerSystem.fire('UPGRADE_RANGE');
+    });
+    // U: engine 채팅 업그레이드 시뮬레이션 — 같이 자동 충전
+    this.input.keyboard.on('keydown-U', () => {
+      if (gameState.gold < 500000) gameState.addGold(500000);
+      this.triggerSystem.fire('UPGRADE_ENGINE');
+    });
+    // 드릴 변경 테스트 — 디버그용이라 골드 자동 충전 후 발동
     const DRILL_KEYS = { 'S': 'DRILL_STONE', 'I': 'DRILL_IRON' };
     for (const [key, triggerId] of Object.entries(DRILL_KEYS)) {
-      this.input.keyboard.on(`keydown-${key}`, () => this.triggerSystem.fire(triggerId));
+      this.input.keyboard.on(`keydown-${key}`, () => {
+        if (gameState.gold < 2000000) gameState.addGold(2000000);
+        this.triggerSystem.fire(triggerId);
+      });
     }
 
     // === 후원 시뮬레이션 키보드 매핑 (Phase 3 테스트용) ===
