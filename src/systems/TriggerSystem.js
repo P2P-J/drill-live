@@ -135,12 +135,10 @@ export class TriggerSystem {
     return { ok: true };
   }
 
-  // 드릴 직접 지정 (wood/stone/iron/gold/diamond) — 골드 충분하면 해당 Lv으로.
-  _doSetDrill(targetLv, donor) {
-    if (!this.upgradeSystem) return { ok: false, reason: 'no-system' };
-    const result = this.upgradeSystem.tryBuyDrillByLevel(targetLv);
-    this._emit('upgrade-attempt', { name: 'drillPower', donor, result });
-    return result;
+  // 드릴 직접 지정 (wood/stone/iron/gold/diamond) — 현재 비활성 (시각/효과 없음)
+  // 채팅 명령은 받지만 게임에 아무 반응 없도록 silently no-op.
+  _doSetDrill(_targetLv, _donor) {
+    return { ok: false, reason: 'disabled' };
   }
 
   // 범위/엔진 — 다음 Lv로 단계 증가.

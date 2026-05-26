@@ -82,25 +82,7 @@ export class Driller {
     this.engineMult = engineMult;
 
     // 드릴 파워 단계별 색 변화 (Wood→Stone→Iron→Gold→Diamond)
-    // 드릴 등급별 tint + sprite scale 가산 (확실한 시각 차이)
-    const drillPowerLv = this.upgradeSystem.getLevel?.('drillPower') ?? 1;
-    if (drillPowerLv !== this._lastDrillPowerLv) {
-      this._lastDrillPowerLv = drillPowerLv;
-      const tints = [
-        0xFFFFFF,  // Lv 1 Wood — 기본 흰색
-        0x9E9E9E,  // Lv 2 Stone — 진한 회색
-        0x4FC3F7,  // Lv 3 Iron — 강철 푸른빛
-        0xFFD700,  // Lv 4 Gold — 선명한 금색
-        0x00E5FF,  // Lv 5 Diamond — 선명한 시안
-      ];
-      const tierScale = [1.00, 1.05, 1.10, 1.15, 1.22];  // 등급 올라갈수록 살짝 커짐
-      const idx = Math.min(4, drillPowerLv - 1);
-      this.sprite.setTint(tints[idx]);
-      this._tierScale = tierScale[idx];
-      // 현재 range × tier 합산 scale 재적용
-      const mult = (1.0 + (this.drillRange - 1) * 0.55) * this._tierScale;
-      this.sprite.setScale(this._baseScale * mult);
-    }
+    // 드릴 등급별 tint/scale 시각 변화 비활성 — wood/stone/iron/... 채팅 명령에 시각 반응 X
 
     // 업그레이드 단계 + drillRangeUp 버프 = 효과 range
     const baseRange = this.upgradeSystem.getDrillRange();
@@ -127,7 +109,7 @@ export class Driller {
   // baseScale (텍스처 크기 보정) × rangeMultiplier 로 최종 scale 계산.
   // baseScale이 커진 만큼(5x) rangeMultiplier는 줄여서 13타일 채널 안에 머물게 함.
   _tweenScaleForRange(range) {
-    const mult = (1.0 + (range - 1) * 0.55) * (this._tierScale ?? 1.0);
+    const mult = 1.0 + (range - 1) * 0.55;
     const targetScale = (this._baseScale ?? 1.0) * mult;
     this.scene.tweens.killTweensOf(this.sprite);
     this.scene.tweens.add({
@@ -449,8 +431,8 @@ export class Driller {
     this._currentMood = mood;
     this.sprite.setTexture(key);
     this._recomputeBaseScale();
-    // 현재 drillRange × tier 배율 유지
-    const mult = (1.0 + (this.drillRange - 1) * 0.55) * (this._tierScale ?? 1.0);
+    // 현재 drillRange 배율 유지
+    const mult = 1.0 + (this.drillRange - 1) * 0.55;
     this.sprite.setScale(this._baseScale * mult);
   }
 
