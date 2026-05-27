@@ -12,6 +12,9 @@ const config = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    parent: 'game',
+    width: 1080,
+    height: 1920,
   },
   pixelArt: false,
   scene: [BootScene, GameScene, UIScene],
