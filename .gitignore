@@ -7,6 +7,9 @@ dist
 .vite
 .cache
 
+# Electron 패키징 산출물
+release/
+
 # 에디터/OS
 .DS_Store
 *.log
