@@ -106,6 +106,17 @@ export class GameScene extends Phaser.Scene {
     // W: DRILL_WOOD (FAST는 Q로 옮김)
     this.input.keyboard.on('keydown-Q', () => this.triggerSystem.fire('FAST'));
 
+    // J: 깊이 점프 (테스트용) — 단독 +5,000km / SHIFT+J +50,000km / CTRL+J +1,000km
+    this.input.keyboard.on('keydown-J', (e) => {
+      let jumpKm;
+      if (e.ctrlKey) jumpKm = 1000;
+      else if (e.shiftKey) jumpKm = 50000;
+      else jumpKm = 5000;
+      this.driller.y += jumpKm * GAME.pxPerKm;
+      this.driller.container.y = this.driller.y;
+      this.tileMap.update(this.driller.y);
+    });
+
     // R: drillRange 채팅 업그레이드 시뮬레이션 — 디버그용이라 골드 자동 충전 후 발동
     this.input.keyboard.on('keydown-R', () => {
       if (gameState.gold < 1000000) gameState.addGold(1000000);
