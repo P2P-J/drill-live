@@ -34,7 +34,9 @@
     },
     "asarUnpack": [
       "server/**/*",
-      "public/assets/**/*"
+      "public/assets/**/*",
+      "node_modules/**/*",
+      "package.json"
     ],
     "win": {
       "target": "nsis"

@@ -29,9 +29,15 @@ class ChildManager {
   }
 
   _spawnNode(scriptPath, args = []) {
+    const root = getProjectRoot();
     return spawn(process.execPath, [scriptPath, ...args], {
-      cwd: getProjectRoot(),
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      cwd: root,
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        // packaged 모드에서 node_modules 경로 명시 (asarUnpack로 풀린 곳)
+        NODE_PATH: path.join(root, 'node_modules'),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   }
