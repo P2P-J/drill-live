@@ -149,7 +149,6 @@ export class GameScene extends Phaser.Scene {
     // 사운드 mute 토글
     this.input.keyboard.on('keydown-SEMICOLON', () => {
       const muted = this.soundManager.toggleMute();
-      console.log('Sound', muted ? 'muted' : 'unmuted');
     });
   }
 

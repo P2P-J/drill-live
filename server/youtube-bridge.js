@@ -225,8 +225,7 @@ chat.on('chat', (item) => {
     return;
   }
 
-  // 4) 일반 채팅은 로그만
-  // console.log(`[YT] chat: ${author}: ${text}`);
+  // 4) 일반 채팅은 무시 (overlay 명세대로 표시 안 함)
 });
 
 chat.on('end', (reason) => {

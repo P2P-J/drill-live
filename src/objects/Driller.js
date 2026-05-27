@@ -97,8 +97,7 @@ export class Driller {
     this.drillSpeedMult = drillSpeedMult;
     this.engineMult = engineMult;
 
-    // 드릴 파워 단계별 색 변화 (Wood→Stone→Iron→Gold→Diamond)
-    // 드릴 등급별 tint/scale 시각 변화 비활성 — wood/stone/iron/... 채팅 명령에 시각 반응 X
+    // (드릴 컨셉별 시각 변화는 setConcept/_applyTexture가 텍스처 교체로 처리)
 
     // 업그레이드 단계 + drillRangeUp 버프 = 효과 range
     const baseRange = this.upgradeSystem.getDrillRange();
