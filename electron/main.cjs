@@ -29,7 +29,7 @@ function createWindow() {
     resizable: true,
     center: true,           // 모니터 가운데 정렬 (큰 게임 사이즈 좌상단 클립 방지)
     autoHideMenuBar: true,
-    backgroundColor: '#6B3A2A',  // Earth 바이옴 갈색 — letterbox 영역과 같은 색
+    backgroundColor: '#A0522D',  // 게임 표토층 갈색 — letterbox 영역과 같은 색
     title: 'Drill Live',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
