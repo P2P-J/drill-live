@@ -38,6 +38,9 @@ function createWindow() {
       // file:// scheme로 dist/index.html 로드 시 Phaser asset XHR이 CORS로 막히지 않게.
       // 외부 컨텐츠 안 띄우는 본인 사용용 앱이라 안전.
       webSecurity: false,
+      // 백그라운드 throttling 끄기 — 다른 창 클릭해도 게임/오디오 계속 정상 동작
+      // (Chromium 기본 동작이 hidden 탭에서 timer/audio를 throttle)
+      backgroundThrottling: false,
     },
   });
 
