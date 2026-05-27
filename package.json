@@ -13,8 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "electron": "electron .",
-    "electron:dev": "concurrently -k -n VITE,ELECTRON -c green,cyan \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron": "node electron/launcher.cjs",
+    "electron:dev": "concurrently -k -n VITE,ELECTRON -c green,cyan \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development node electron/launcher.cjs\"",
     "electron:pack": "vite build && electron-builder --dir",
     "electron:build": "vite build && electron-builder"
   },
