@@ -10,7 +10,17 @@
         padding: 0;
         width: 100%;
         height: 100%;
-        background: #000;
+        /* 게임 외부 letterbox 영역을 게임 색감(상단 HUD 남색 → 중간 갈색 → 하단 어두운)에 맞춤 */
+        background: linear-gradient(
+          to bottom,
+          #0A0E1A 0%,       /* 상단 HUD 색 */
+          #0A0E1A 8%,
+          #4A2818 12%,      /* 어두운 갈색 (Earth 바이옴 톤) */
+          #6B3A2A 50%,      /* 가운데 갈색 */
+          #4A2818 88%,
+          #0A0E1A 95%,      /* 하단 바 색 */
+          #0A0E1A 100%
+        );
         overflow: hidden;
         font-family: system-ui, -apple-system, sans-serif;
       }
