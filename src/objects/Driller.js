@@ -1,7 +1,7 @@
-import Phaser from 'phaser';
-import { GAME } from '../config/game.js';
-import { gameState } from '../systems/GameState.js';
-import { ensureDrillerTexture } from './DrillerArt.js';
+import Phaser from "phaser";
+import { GAME } from "../config/game.js";
+import { gameState } from "../systems/GameState.js";
+import { ensureDrillerTexture } from "./DrillerArt.js";
 
 // 중력 — 1 타일 = 1m = 64px. 현실 g=627 px/s²의 약 2배(게임 페이스).
 // ExplosionEffect의 GRAVITY_PX_S2와 일치시켜 드릴/폭탄이 같은 물리.
@@ -9,14 +9,24 @@ const GRAVITY_PX_S2 = 1250;
 const MAX_FALL_SPEED = 2400;
 
 export class Driller {
-  constructor(scene, tileX, worldY, tileMap, upgradeSystem = null, buffSystem = null, soundManager = null) {
+  constructor(
+    scene,
+    tileX,
+    worldY,
+    tileMap,
+    upgradeSystem = null,
+    buffSystem = null,
+    soundManager = null,
+  ) {
     this.scene = scene;
     this.tileMap = tileMap;
     this.upgradeSystem = upgradeSystem;
     this.buffSystem = buffSystem;
     this.soundManager = soundManager;
     this.tileSize = GAME.tileSize;
-    this.xOffset = Math.floor((GAME.width - GAME.chunkTilesX * this.tileSize) / 2);
+    this.xOffset = Math.floor(
+      (GAME.width - GAME.chunkTilesX * this.tileSize) / 2,
+    );
 
     this.worldX = this.xOffset + tileX * this.tileSize + this.tileSize / 2;
     this.y = worldY;
@@ -35,8 +45,8 @@ export class Driller {
     // 텍스처 native 크기와 무관하게 일정한 화면 크기로 표시.
     // 목표: 기본 상태에서 드릴 폭 ≈ 256px (4 타일). 큰 PNG여도 자동 축소.
     this._targetWidth = 256;
-    this._concept = 'rush';   // 'rush' | 'wood' | 'stone' | 'iron' | 'gold' | 'diamond'
-    this._state = 'normal';   // 'normal' | 'hurt'
+    this._concept = "rush"; // 'rush' | 'wood' | 'stone' | 'iron' | 'gold' | 'diamond'
+    this._state = "normal"; // 'normal' | 'hurt'
     this._conceptResetTimer = null;
     this._recomputeBaseScale();
     this.sprite.setScale(this._baseScale);
@@ -50,11 +60,15 @@ export class Driller {
     this.drillRange = 1;
 
     // 좌우 통통 튀기 (미미한 드리프트) + 주기적 랜덤 임펄스로 자유로운 움직임
-    this.leftBound = this.xOffset + (GAME.wallLeftX + 1) * this.tileSize + this.tileSize * 0.46;
-    this.rightBound = this.xOffset + GAME.wallRightX * this.tileSize - this.tileSize * 0.46;
+    this.leftBound =
+      this.xOffset +
+      (GAME.wallLeftX + 1) * this.tileSize +
+      this.tileSize * 0.46;
+    this.rightBound =
+      this.xOffset + GAME.wallRightX * this.tileSize - this.tileSize * 0.46;
     this.vx = GAME.bounceSpeed * (Math.random() < 0.5 ? -1 : 1);
-    this._nextRandomKickAt = 0;  // 첫 update에 바로 한 번 보정
-    this._knockbackUntil = 0;    // 폭탄 임펄스 받은 후 mining vy 리셋 잠시 무시
+    this._nextRandomKickAt = 0; // 첫 update에 바로 한 번 보정
+    this._knockbackUntil = 0; // 폭탄 임펄스 받은 후 mining vy 리셋 잠시 무시
 
     this.mineProgress = 0;
     this.isMining = false;
@@ -73,7 +87,7 @@ export class Driller {
 
     // drillPowerUp 버프 (DRILL UP / TURBO / OVERDRIVE / !fast)
     if (this.buffSystem) {
-      const powerBuff = this.buffSystem.get('drillPowerUp');
+      const powerBuff = this.buffSystem.get("drillPowerUp");
       if (powerBuff) {
         drillSpeedMult *= powerBuff.params.mult;
         engineMult *= powerBuff.params.mult;
@@ -90,7 +104,7 @@ export class Driller {
     const baseRange = this.upgradeSystem.getDrillRange();
     let bonus = 0;
     if (this.buffSystem) {
-      const buff = this.buffSystem.get('drillRangeUp');
+      const buff = this.buffSystem.get("drillRangeUp");
       if (buff) bonus = buff.params.bonus;
     }
     const newRange = baseRange + bonus;
@@ -121,7 +135,7 @@ export class Driller {
       scaleX: targetScale,
       scaleY: targetScale,
       duration: 350,
-      ease: 'Back.easeOut',
+      ease: "Back.easeOut",
     });
   }
 
@@ -134,9 +148,9 @@ export class Driller {
     const now = this.scene.time.now;
     if (now >= this._nextRandomKickAt) {
       const dir = Math.random() < 0.5 ? -1 : 1;
-      const strength = 30 + Math.random() * 60;  // 30~90 px/s 임펄스
+      const strength = 30 + Math.random() * 60; // 30~90 px/s 임펄스
       this.vx += dir * strength;
-      this._nextRandomKickAt = now + 1200 + Math.random() * 1800;  // 1.2~3초 간격
+      this._nextRandomKickAt = now + 1200 + Math.random() * 1800; // 1.2~3초 간격
     }
 
     // 좌우 + 벽 반사 (매 반사마다 속도 랜덤화 0.7~1.3배)
@@ -164,10 +178,11 @@ export class Driller {
     if (this.isMining) {
       // 1 타일 = 5번 타격 사이클. 각 타격: 빠르게 내려가서 contact → 위로 튕김
       const cyclesPerTile = 5;
-      const t = ((this.mineProgress / GAME.minePerTileSeconds) * cyclesPerTile) % 1;
+      const t =
+        ((this.mineProgress / GAME.minePerTileSeconds) * cyclesPerTile) % 1;
       // contact = t==0, peak rebound = t≈0.4, 다시 내려 = t→1
       // sin(t * PI) → 0 at 0/1, 1 at 0.5
-      const reboundOffset = -Math.sin(t * Math.PI) * 8;  // 위로 8px 튕김
+      const reboundOffset = -Math.sin(t * Math.PI) * 8; // 위로 8px 튕김
       this.sprite.y = reboundOffset;
       this.sprite.x = 0;
     } else {
@@ -177,23 +192,36 @@ export class Driller {
 
     // 아래쪽 타일 검사 — drill.y = 본체 바닥 = 비트 시작점.
     // 본체 바닥이 타일 윗변에 닿거나 그 아래로 가면 mining 시작 (비트가 타일을 파고듦).
-    const currentTileX = Math.floor((this.worldX - this.xOffset) / this.tileSize);
+    const currentTileX = Math.floor(
+      (this.worldX - this.xOffset) / this.tileSize,
+    );
     const epsilon = 1;
     const nextTileY = Math.floor((this.y + epsilon) / this.tileSize);
 
     const blocker = this.tileMap.getTileAt(currentTileX, nextTileY);
     const inKnockback = this.scene.time.now < this._knockbackUntil;
 
-    if (!inKnockback && blocker && !blocker.destroyed && !blocker.isWall && nextTileY >= 0) {
+    if (
+      !inKnockback &&
+      blocker &&
+      !blocker.destroyed &&
+      !blocker.isWall &&
+      nextTileY >= 0
+    ) {
       if (!this.isMining) {
         // 채굴 시작 — drill_loop 시작. 1.0으로 크게 (라이브 송출 시 다른 소리에 묻히지 않게).
-        this._drillLoop = this.soundManager?.playLoop('drill_loop', { volume: 1.0 });
+        this._drillLoop = this.soundManager?.playLoop("drill_loop", {
+          volume: 1.0,
+        });
         // 현재 속도에 맞춰 즉시 rate 설정
         this._drillLoop?.setRate?.(this.drillSpeedMult);
         this._lastLoopRate = this.drillSpeedMult;
       }
       // 채굴 중에도 drillSpeedMult가 바뀌면 rate 갱신 (TURBO/OVERDRIVE 발동 등)
-      if (this._drillLoop && Math.abs((this._lastLoopRate ?? 1.0) - this.drillSpeedMult) > 0.01) {
+      if (
+        this._drillLoop &&
+        Math.abs((this._lastLoopRate ?? 1.0) - this.drillSpeedMult) > 0.01
+      ) {
         this._drillLoop.setRate?.(this.drillSpeedMult);
         this._lastLoopRate = this.drillSpeedMult;
       }
@@ -203,7 +231,10 @@ export class Driller {
       this.mineProgress += (dt * this.drillSpeedMult) / hardness;
 
       // 크랙 단계 갱신 — 깨질 범위 (반원) 전체에 크랙 표시 (0 → 4)
-      const crackStage = Math.min(4, Math.floor((this.mineProgress / GAME.minePerTileSeconds) * 5));
+      const crackStage = Math.min(
+        4,
+        Math.floor((this.mineProgress / GAME.minePerTileSeconds) * 5),
+      );
       if (crackStage !== this._lastCrackStage) {
         this._lastCrackStage = crackStage;
         this._applyCracksToSemicircle(nextTileY, currentTileX, crackStage);
@@ -232,7 +263,10 @@ export class Driller {
       this.isMining = false;
       // 자유낙하 / 자유비행 — 중력 가속 + sub-step 충돌 검사.
       // 폭탄 임펄스로 위로 날아갈 수도 있어서 하강/상승 둘 다 처리.
-      this.vy = Math.min(MAX_FALL_SPEED, this.vy + GRAVITY_PX_S2 * this.engineMult * dt);
+      this.vy = Math.min(
+        MAX_FALL_SPEED,
+        this.vy + GRAVITY_PX_S2 * this.engineMult * dt,
+      );
       const moveDist = this.vy * dt;
       const T = this.tileSize;
       if (moveDist >= 0) {
@@ -243,7 +277,12 @@ export class Driller {
           const step = Math.min(remaining, subStep);
           const probeTileY = Math.floor((this.y + step + epsilon) / T);
           const probeTile = this.tileMap.getTileAt(currentTileX, probeTileY);
-          if (probeTile && !probeTile.destroyed && !probeTile.isWall && probeTileY >= 0) {
+          if (
+            probeTile &&
+            !probeTile.destroyed &&
+            !probeTile.isWall &&
+            probeTileY >= 0
+          ) {
             this.y = probeTileY * T;
             this.vy = 0;
             break;
@@ -322,7 +361,7 @@ export class Driller {
         const px = tile.worldX + this.tileSize / 2;
         const py = tile.worldY + this.tileSize / 2;
         const ore = this.tileMap.destroyTile(tx, ty);
-        this._spawnParticles(px, py, ore ? ore.color : 0x8B5A2B);
+        this._spawnParticles(px, py, ore ? ore.color : 0x8b5a2b);
 
         if (ore) {
           totalGold += ore.value;
@@ -337,7 +376,7 @@ export class Driller {
     if (totalGold > 0) gameState.addGold(totalGold);
   }
 
-  _spawnParticles(x, y, color = 0x8B5A2B) {
+  _spawnParticles(x, y, color = 0x8b5a2b) {
     const count = 6;
     for (let i = 0; i < count; i++) {
       const p = this.scene.add.rectangle(x, y, 8, 8, color);
@@ -354,7 +393,7 @@ export class Driller {
         scaleX: 0.2,
         scaleY: 0.2,
         duration: 320 + Math.random() * 180,
-        ease: 'Quad.easeOut',
+        ease: "Quad.easeOut",
         onComplete: () => p.destroy(),
       });
     }
@@ -362,10 +401,15 @@ export class Driller {
 
   _spawnBounceParticles(x, y, dirX) {
     for (let i = 0; i < 5; i++) {
-      const p = this.scene.add.circle(x, y + (Math.random() - 0.5) * 20, 4, 0xFFEB3B);
+      const p = this.scene.add.circle(
+        x,
+        y + (Math.random() - 0.5) * 20,
+        4,
+        0xffeb3b,
+      );
       p.setStrokeStyle(1, 0xff6f00, 1);
       p.setDepth(60);
-      const angle = (-Math.PI / 4) + (i / 4) * (Math.PI / 2);
+      const angle = -Math.PI / 4 + (i / 4) * (Math.PI / 2);
       const dist = 22 + Math.random() * 18;
       this.scene.tweens.add({
         targets: p,
@@ -375,7 +419,7 @@ export class Driller {
         scaleX: 0.1,
         scaleY: 0.1,
         duration: 260,
-        ease: 'Quad.easeOut',
+        ease: "Quad.easeOut",
         onComplete: () => p.destroy(),
       });
     }
@@ -391,7 +435,7 @@ export class Driller {
       scaleX: 1.0,
       scaleY: 1.0,
       duration: 150,
-      ease: 'Quad.easeOut',
+      ease: "Quad.easeOut",
     });
   }
 
@@ -417,9 +461,11 @@ export class Driller {
     this.scene.tweens.killTweensOf(this.container);
     this.scene.tweens.add({
       targets: this.container,
-      scaleX: 1.15, scaleY: 0.88,
-      duration: 90, yoyo: true,
-      ease: 'Quad.easeOut',
+      scaleX: 1.15,
+      scaleY: 0.88,
+      duration: 90,
+      yoyo: true,
+      ease: "Quad.easeOut",
     });
     // 부상 표정 — 현재 컨셉의 hurt 텍스처로 350ms, 자동 normal 복귀
     this.setHurt();
@@ -428,7 +474,7 @@ export class Driller {
   // 채팅 컨셉 변경 (wood/stone/iron/gold/diamond) — 3초 유지 후 rush 복귀
   // 같은 컨셉이 다시 들어오면 타이머만 리프레시.
   setConcept(concept) {
-    const valid = ['rush', 'wood', 'stone', 'iron', 'gold', 'diamond'];
+    const valid = ["rush", "wood", "stone", "iron", "gold", "diamond"];
     if (!valid.includes(concept)) return;
     if (this._concept === concept) {
       this._resetConceptTimer();
@@ -436,13 +482,13 @@ export class Driller {
     }
     this._concept = concept;
     this._applyTexture();
-    if (concept !== 'rush') this._resetConceptTimer();
+    if (concept !== "rush") this._resetConceptTimer();
   }
 
   _resetConceptTimer() {
     if (this._conceptResetTimer) this._conceptResetTimer.remove();
     this._conceptResetTimer = this.scene.time.delayedCall(3000, () => {
-      this._concept = 'rush';
+      this._concept = "rush";
       this._applyTexture();
       this._conceptResetTimer = null;
     });
@@ -450,10 +496,10 @@ export class Driller {
 
   // 폭탄 부딪침 — 현재 컨셉의 hurt 텍스처로 350ms, 자동 normal 복귀
   setHurt() {
-    this._state = 'hurt';
+    this._state = "hurt";
     this._applyTexture();
     this.scene.time.delayedCall(350, () => {
-      this._state = 'normal';
+      this._state = "normal";
       this._applyTexture();
     });
   }
@@ -464,29 +510,29 @@ export class Driller {
   // 미세조정: 아래 CONCEPT_VISUAL_TUNE 값만 수정하면 됨.
   _applyTexture() {
     const keys = {
-      rush:    { normal: 'driller',         hurt: 'driller-cry' },
-      wood:    { normal: 'drill-wood',      hurt: 'drill-wood-hurt' },
-      stone:   { normal: 'drill-stone',     hurt: 'drill-stone-hurt' },
-      iron:    { normal: 'drill-iron',      hurt: 'drill-iron-hurt' },
-      gold:    { normal: 'drill-gold',      hurt: 'drill-gold-hurt' },
-      diamond: { normal: 'drill-diamond',   hurt: 'drill-diamond-hurt' },
+      rush: { normal: "driller", hurt: "driller-cry" },
+      wood: { normal: "drill-wood", hurt: "drill-wood-hurt" },
+      stone: { normal: "drill-stone", hurt: "drill-stone-hurt" },
+      iron: { normal: "drill-iron", hurt: "drill-iron-hurt" },
+      gold: { normal: "drill-gold", hurt: "drill-gold-hurt" },
+      diamond: { normal: "drill-diamond", hurt: "drill-diamond-hurt" },
     };
     // scaleMult: 시각적 크기 보정 (drill-rush 기준 1.0)
     // originY:   anchor 위치 (sprite 안에서 비트 끝 y 비율). 클수록 sprite가 anchor 위쪽으로 그려져 땅 위로 떠 보임.
     const CONCEPT_VISUAL_TUNE = {
-      rush:    { scaleMult: 1.00, originY: 0.70 },
-      wood:    { scaleMult: 1.50, originY: 0.88 },
-      stone:   { scaleMult: 1.50, originY: 0.88 },
-      iron:    { scaleMult: 1.50, originY: 0.88 },
-      gold:    { scaleMult: 1.50, originY: 0.88 },
-      diamond: { scaleMult: 1.50, originY: 0.88 },
+      rush: { scaleMult: 1.0, originY: 0.69 },
+      wood: { scaleMult: 1.2, originY: 0.82 },
+      stone: { scaleMult: 1.1, originY: 0.9 },
+      iron: { scaleMult: 1.2, originY: 0.83 },
+      gold: { scaleMult: 1.16, originY: 0.85 },
+      diamond: { scaleMult: 1.18, originY: 0.86 },
     };
     let key = keys[this._concept]?.[this._state];
     if (!key || !this.scene.textures.exists(key)) {
       key = keys[this._concept]?.normal;
     }
     if (!key || !this.scene.textures.exists(key)) {
-      key = 'driller';
+      key = "driller";
     }
     const tune = CONCEPT_VISUAL_TUNE[this._concept] ?? CONCEPT_VISUAL_TUNE.rush;
     this.sprite.setTexture(key);
@@ -497,7 +543,7 @@ export class Driller {
   }
 
   _recomputeBaseScale(key) {
-    const useKey = key ?? 'driller';
+    const useKey = key ?? "driller";
     const srcImg = this.scene.textures.get(useKey)?.getSourceImage?.();
     const naturalW = (srcImg && srcImg.width) || 64;
     this._baseScale = this._targetWidth / naturalW;
@@ -506,7 +552,12 @@ export class Driller {
   // 현재 컨셉의 scaleMult — _applyTexture와 _tweenScaleForRange가 공유
   _currentConceptScaleMult() {
     const tunes = {
-      rush: 1.00, wood: 1.50, stone: 1.50, iron: 1.50, gold: 1.50, diamond: 1.50,
+      rush: 1.0,
+      wood: 1.5,
+      stone: 1.5,
+      iron: 1.5,
+      gold: 1.5,
+      diamond: 1.5,
     };
     return tunes[this._concept] ?? 1.0;
   }
