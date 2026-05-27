@@ -22,6 +22,14 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// Phaser는 윈도우 blur(포커스 잃음) 시 sound manager 자동 정지. 라이브 송출엔 치명적.
+// pauseOnBlur = false로 끔. (Phaser 초기화 후 game.sound가 만들어진 다음 호출 필요)
+game.events.once('ready', () => {
+  if (game.sound) game.sound.pauseOnBlur = false;
+});
+// 안전망 — sound가 lazy init되는 경우도 있어서 즉시 시도
+if (game.sound) game.sound.pauseOnBlur = false;
+
 // Electron 환경에선 backgroundThrottling: false로 백그라운드에서도 게임/오디오 정상 동작.
 // 일반 웹(브라우저)일 때만 visibility 변경 시 audio context suspend/resume 처리 (burst 방지).
 if (typeof window !== 'undefined' && !window.electronAPI) {

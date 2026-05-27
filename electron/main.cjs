@@ -51,6 +51,14 @@ function createWindow() {
 
   if (isDev) mainWindow.webContents.openDevTools({ mode: 'detach' });
 
+  // 윈도우 blur/focus 시 audio mute 방지 (라이브 송출 중 다른 창 클릭해도 소리 유지)
+  mainWindow.on('blur', () => {
+    mainWindow?.webContents.setAudioMuted(false);
+  });
+  mainWindow.on('focus', () => {
+    mainWindow?.webContents.setAudioMuted(false);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
