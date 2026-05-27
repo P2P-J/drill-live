@@ -2,7 +2,16 @@
 // 서버 미실행 / 연결 끊김 / 메시지 형식 오류 시 silently 동작 — 키보드 시뮬레이션은 그대로 작동.
 // Phase 4: youtube-chat / Streamer.bot → 서버 → 게임 흐름 완성.
 
-const DEFAULT_URL = `ws://${typeof location !== 'undefined' ? location.hostname : 'localhost'}:8080/ws`;
+// Electron file:// 환경에선 location.hostname이 빈 문자열이라 'ws://:8080/ws'가 됨 → 연결 실패.
+// file:// 또는 hostname 비어있으면 localhost 강제.
+function getDefaultUrl() {
+  if (typeof location === 'undefined') return 'ws://localhost:8080/ws';
+  if (location.protocol === 'file:' || !location.hostname) {
+    return 'ws://localhost:8080/ws';
+  }
+  return `ws://${location.hostname}:8080/ws`;
+}
+const DEFAULT_URL = getDefaultUrl();
 const RECONNECT_INITIAL_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
 
